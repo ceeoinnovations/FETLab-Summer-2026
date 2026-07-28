@@ -1,0 +1,17 @@
+--- "/home/claude/project/road-race/road-race copy 2/drive.py"	2026-07-07 18:32:23.000000000 +0000
++++ road-race-fixed/drive.py	2026-07-07 20:28:02.849014438 +0000
+@@ -107,7 +107,13 @@
+         left_speed = denormalize_speed(float(pred[0]))
+         right_speed = denormalize_speed(float(pred[1]))
+ 
+-        dm.movement_move_tank(apply_deadzone(3*(left_speed)), apply_deadzone(3*(right_speed)))
++        # IMPORTANT: this must match collect_data.py's motor command exactly for
++        # a given speed value (same units, same scale) — that's what makes the
++        # demonstrated behavior and the deployed behavior the same physical motion.
++        # Previously this multiplied by 3 while collection divided by 10 (a 30x
++        # mismatch), which made the car drive far harder than anything it was
++        # shown, causing overshoot into the target. No extra multiplier here.
++        dm.movement_move_tank(apply_deadzone(left_speed), apply_deadzone(right_speed))
+ 
+         cv2.putText(frame, f"L: {left_speed:+5.1f}  R: {right_speed:+5.1f}",
+                     (10, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 80), 2)

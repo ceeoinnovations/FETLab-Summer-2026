@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maze Lab</title>
+<style>
+  /* ── Reset & tokens ───────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #0d0f1a;
+    --surface: #13162a;
+    --panel:   #181c30;
+    --border:  #252a42;
+    --ink:     #e8eaf6;
+    --muted:   #5c6394;
+    --accent:  #4f6ef7;
+    --signal:  #00e5cc;
+    --recv:    #9c6bff;
+    --green:   #00d68f;
+    --red:     #ff4d6a;
+    --yellow:  #ffc107;
+    --radius:  6px;
+    --mono:    'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    font-size: 13px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Top bar ──────────────────────────────────────────────────── */
+  #topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 1rem;
+    height: 42px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #topbar .logo {
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  #topbar .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--signal);
+    box-shadow: 0 0 8px var(--signal);
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.85)} }
+  #topbar h1 { font-size: .9rem; font-weight: 700; letter-spacing: .05em; color: var(--ink); }
+  #topbar .sub { font-size: .7rem; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; }
+
+  /* ── Device bar ───────────────────────────────────────────────── */
+  #devbar {
+    display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    padding: .4rem 1rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #devbar label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  #devbar select, #devbar button {
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--ink); border-radius: var(--radius);
+    padding: .25rem .5rem; font-size: .75rem; cursor: pointer;
+  }
+  #devbar button { border-color: var(--accent); color: var(--accent); }
+  #devbar button:hover { background: var(--accent); color: #fff; }
+  .chip {
+    background: var(--border); color: var(--signal);
+    border-radius: 12px; padding: .15rem .55rem;
+    font-size: .7rem; font-family: var(--mono);
+  }
+
+  /* ── Main layout ──────────────────────────────────────────────── */
+  #main {
+    display: flex; flex: 1; min-height: 0;
+  }
+
+  /* ── Editor pane ──────────────────────────────────────────────── */
+  #editor-pane {
+    flex: 1; display: flex; flex-direction: column;
+    border-right: 1px solid var(--border); min-width: 0;
+  }
+  .pane-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .35rem .75rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .pane-label {
+    font-size: .65rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
+  }
+  .btn-row { display: flex; gap: .35rem; }
+  .btn {
+    border: none; border-radius: var(--radius);
+    padding: .25rem .65rem; font-size: .75rem; font-weight: 600;
+    cursor: pointer; transition: opacity .15s;
+  }
+  .btn:active { opacity: .75; }
+  .btn-run  { background: var(--green); color: #000; }
+  .btn-stop { background: var(--red);   color: #fff; }
+  .btn-send { background: var(--accent); color: #fff; }
+  .btn-connect { background: var(--accent); color: #fff; }
+  .btn-disconnect { background: var(--red); color: #fff; }
+
+  #code-editor {
+    flex: 1; width: 100%; resize: none;
+    background: var(--bg); color: var(--ink);
+    border: none; outline: none;
+    font-family: var(--mono); font-size: .82rem;
+    line-height: 1.65; padding: .75rem 1rem;
+    tab-size: 4;
+  }
+  #output-area {
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #output-box {
+    font-family: var(--mono); font-size: .78rem;
+    color: var(--signal); padding: .5rem .75rem;
+    min-height: 64px; max-height: 140px; overflow-y: auto;
+    white-space: pre-wrap; background: var(--bg);
+  }
+
+  /* ── Right panel ──────────────────────────────────────────────── */
+  #right-panel {
+    width: 270px; flex-shrink: 0;
+    display: flex; flex-direction: column;
+    overflow-y: auto; background: var(--panel);
+  }
+
+  /* ── Collapsible sections ─────────────────────────────────────── */
+  .section { border-bottom: 1px solid var(--border); }
+  .section-toggle {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    background: none; border: none; cursor: pointer;
+    padding: .55rem .75rem;
+    color: var(--ink); font-size: .78rem; font-weight: 600;
+    text-align: left;
+  }
+  .section-toggle:hover { background: rgba(255,255,255,.03); }
+  .section-toggle .arrow { color: var(--muted); font-size: .65rem; transition: transform .2s; }
+  .section-toggle.open .arrow { transform: rotate(0deg); }
+  .section-body { padding: .25rem .75rem .65rem; }
+  .section-body.hidden { display: none; }
+
+  /* ── Library entries ──────────────────────────────────────────── */
+  .lib-cat-btn {
+    width: 100%; display: flex; justify-content: space-between; align-items: center;
+    background: none; border: none; cursor: pointer;
+    padding: .3rem .1rem; color: var(--accent); font-size: .74rem; font-weight: 600;
+    text-align: left;
+  }
+  .lib-cat-btn .arrow { color: var(--muted); font-size: .6rem; }
+  .lib-entries { padding-left: .35rem; margin-bottom: .25rem; }
+  .lib-entry { margin-bottom: .4rem; }
+  .lib-fn {
+    font-family: var(--mono); font-size: .72rem;
+    color: var(--signal); display: block; margin-bottom: .1rem;
+  }
+  .lib-desc { font-size: .68rem; color: var(--muted); line-height: 1.4; }
+  .lib-note {
+    font-size: .68rem; color: var(--muted); line-height: 1.5;
+    margin: .2rem 0 .4rem; padding: .35rem .4rem;
+    background: rgba(255,255,255,.03); border-radius: var(--radius);
+    border-left: 2px solid var(--recv);
+  }
+
+  /* ── EI Panel inputs ──────────────────────────────────────────── */
+  .field-label {
+    font-size: .65rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .07em;
+    margin-bottom: .2rem; margin-top: .4rem; display: block;
+  }
+  .field-input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--ink); border-radius: var(--radius);
+    padding: .3rem .45rem; font-size: .78rem; outline: none;
+    transition: border-color .15s;
+  }
+  .field-input:focus { border-color: var(--accent); }
+  .ei-instructions {
+    font-size: .7rem; color: var(--muted); line-height: 1.55;
+    margin-bottom: .5rem; padding: .35rem .4rem;
+    background: rgba(255,255,255,.03); border-radius: var(--radius);
+    border-left: 2px solid var(--accent);
+  }
+  .ei-instructions strong { color: var(--ink); }
+  .status-line {
+    font-size: .7rem; margin: .35rem 0;
+    min-height: 1.1em; line-height: 1.4;
+  }
+  .status-live  { color: var(--green); }
+  .status-error { color: var(--red); }
+  .status-wait  { color: var(--yellow); }
+
+  /* ── EI Bars ──────────────────────────────────────────────────── */
+  .detected-row {
+    display: flex; gap: 1.2rem; margin: .35rem 0;
+  }
+  .detected-item { font-size: .72rem; color: var(--muted); }
+  .detected-item strong { color: var(--ink); display: block; font-size: .85rem; margin-top: .1rem; }
+  .bar-row { display: flex; align-items: center; gap: .4rem; margin-bottom: .3rem; }
+  .bar-label {
+    width: 72px; font-size: .68rem; color: var(--ink); flex-shrink: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .bar-track {
+    flex: 1; background: var(--border); border-radius: 3px; height: 9px; overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%; background: var(--recv); border-radius: 3px;
+    transition: width .2s ease;
+  }
+  .bar-pct { width: 30px; text-align: right; font-size: .67rem; color: var(--muted); flex-shrink: 0; }
+
+  /* ── Channels panel ───────────────────────────────────────────── */
+  .ch-row { display: flex; gap: .35rem; margin-bottom: .35rem; align-items: center; }
+  .ch-row input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    color: var(--ink); border-radius: var(--radius);
+    padding: .3rem .45rem; font-size: .78rem; outline: none;
+  }
+  .ch-row input:focus { border-color: var(--accent); }
+  .ch-status-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    background: var(--red); transition: background .3s;
+  }
+  .ch-status-dot.on { background: var(--green); box-shadow: 0 0 5px var(--green); }
+  #ch-log {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .3rem .45rem;
+    min-height: 54px; max-height: 100px; overflow-y: auto;
+    font-family: var(--mono); font-size: .68rem; color: var(--signal);
+  }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div id="topbar">
+  <div class="logo">
+    <div class="dot"></div>
+    <h1>Maze Lab</h1>
+  </div>
+  <span class="sub">drive · detect · navigate</span>
+</div>
+
+<!-- Device bar -->
+<div id="devbar">
+  <label>Add device</label>
+  <select id="dev-select">
+    <option>Double Motor (dm)</option>
+    <option>Single Motor (sm)</option>
+    <option>Color Sensor (cs)</option>
+    <option>Controller (c)</option>
+  </select>
+  <button onclick="addDevice()">＋ Add Device</button>
+  <div id="chips"></div>
+</div>
+
+<!-- Main -->
+<div id="main">
+
+  <!-- Editor pane -->
+  <div id="editor-pane">
+    <div class="pane-header">
+      <span class="pane-label">Code</span>
+      <div class="btn-row">
+        <button class="btn btn-run" onclick="runCode()">▶ Run</button>
+        <button class="btn btn-stop" onclick="stopCode()">■ Stop</button>
+      </div>
+    </div>
+    <textarea id="code-editor" spellcheck="false"># Write your LEGO Python here
+wait(2)
+print("Hello from Maze Lab!")
+dm.run_time(1000)
+</textarea>
+    <div id="output-area">
+      <div class="pane-header" style="border-top:1px solid var(--border);border-bottom:none;">
+        <span class="pane-label">Output</span>
+        <button class="btn" style="font-size:.68rem;background:none;border:1px solid var(--border);color:var(--muted);"
+          onclick="document.getElementById('output-box').textContent=''">Clear</button>
+      </div>
+      <div id="output-box"></div>
+    </div>
+  </div>
+
+  <!-- Right panel -->
+  <div id="right-panel">
+
+    <!-- Library -->
+    <div class="section">
+      <button class="section-toggle open" onclick="toggleSection(this)">
+        Library <span class="arrow">▾</span>
+      </button>
+      <div class="section-body" id="lib-body"></div>
+    </div>
+
+    <!-- Edge Impulse -->
+    <div class="section">
+      <button class="section-toggle open" onclick="toggleSection(this)">
+        Edge Impulse <span class="arrow">▾</span>
+      </button>
+      <div class="section-body" id="ei-body">
+        <div class="ei-instructions">
+          <strong>1.</strong> On your phone, open the <strong>EI phone page</strong> and enter your WASM URL + this channel.<br>
+          <strong>2.</strong> Point the camera — predictions appear here automatically.<br>
+          <strong>3.</strong> Read in Python with <code style="color:var(--signal)">channel.msg</code>
+        </div>
+        <div class="status-line status-wait" id="ei-status">Waiting for phone to connect…</div>
+        <div id="ei-detected" style="display:none">
+          <div class="detected-row">
+            <div class="detected-item">Detected <strong id="ei-class">—</strong></div>
+            <div class="detected-item">Confidence <strong id="ei-conf">0%</strong></div>
+          </div>
+          <div id="ei-bars"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Channels -->
+    <div class="section">
+      <button class="section-toggle open" onclick="toggleSection(this)">
+        <span style="display:flex;align-items:center;gap:.4rem;">
+          <span class="ch-status-dot" id="ch-dot"></span>Channels
+        </span>
+        <span class="arrow">▾</span>
+      </button>
+      <div class="section-body">
+        <div class="ch-row">
+          <input id="ch-topic" type="text" value="/LEGO" placeholder="Channel" oninput="onChannelChange()">
+        </div>
+        <div class="ch-row">
+          <input id="ch-msg" type="text" placeholder="Message" onkeydown="if(e.key==='Enter')sendMsg()">
+          <button class="btn btn-send" onclick="sendMsg()">Send</button>
+        </div>
+        <div id="ch-log"><span style="color:var(--muted)">Connecting…</span></div>
+      </div>
+    </div>
+
+  </div><!-- /right-panel -->
+</div><!-- /main -->
+
+<script>
+// ── Constants ───────────────────────────────────────────────────────
+const RELAY = "wss://@chrisrogers.pyscriptapps.com/talking-on-a-channel/api/channels/hackathon";
+const STALE_MS = 2500;
+
+// ── Library data ────────────────────────────────────────────────────
+const LIBRARY = [
+  { label: "General", entries: [
+    { fn: "wait(seconds)",  desc: "Pause for this many seconds" },
+    { fn: "print(message)", desc: "Show a message in the Output box" },
+  ]},
+  { label: "Channels — channel", entries: [
+    { fn: "channel.msg",            desc: "Latest prediction from the phone" },
+    { fn: "channel.send('go')",     desc: "Send a message on the channel" },
+    { fn: "channel.wait_for('go')", desc: "Pause until 'go' arrives" },
+    { fn: "channel.clear()",        desc: "Forget the last message" },
+  ]},
+  { label: "Double Motor — dm", entries: [
+    { fn: "dm.run()",              desc: "Drive straight until stop()" },
+    { fn: "dm.run_time(ms)",       desc: "Drive for this many milliseconds" },
+    { fn: "dm.turn_left(degrees)", desc: "Turn left in place" },
+    { fn: "dm.turn_right(degrees)",desc: "Turn right in place" },
+    { fn: "dm.set_speed(speed)",   desc: "Set speed 0–100" },
+    { fn: "dm.stop()",             desc: "Stop both motors" },
+  ]},
+  { label: "Single Motor — sm", entries: [
+    { fn: "sm.run()",            desc: "Run until stop()" },
+    { fn: "sm.stop()",           desc: "Stop the motor" },
+    { fn: "sm.set_speed(speed)", desc: "Set speed 0–100" },
+  ]},
+  { label: "Color Sensor — cs", entries: [
+    { fn: "cs.detect_color()",      desc: "Returns color e.g. 'Red'" },
+    { fn: "cs.detect_rgb()",        desc: "Returns (R, G, B) values" },
+    { fn: "cs.detect_reflection()", desc: "Reflection 0–100" },
+  ]},
+  { label: "Controller — c", entries: [
+    { fn: "c.drive(dm)",        desc: "Drive dm with the sticks" },
+    { fn: "c.left_position()",  desc: "Left stick −100 to 100" },
+    { fn: "c.right_position()", desc: "Right stick −100 to 100" },
+  ]},
+  { label: "Edge Impulse — phone", note: "Open ei-phone.html on your phone. Enter your EI WASM URL and channel, tap Start. The top prediction arrives here as channel.msg.", entries: [
+    { fn: "channel.msg", desc: "Top predicted class label from the phone" },
+  ]},
+];
+
+// ── Render library ──────────────────────────────────────────────────
+const libBody = document.getElementById("lib-body");
+LIBRARY.forEach(cat => {
+  const catDiv = document.createElement("div");
+  const btn = document.createElement("button");
+  btn.className = "lib-cat-btn";
+  btn.innerHTML = `${cat.label} <span class="arrow">▸</span>`;
+  const entries = document.createElement("div");
+  entries.className = "lib-entries";
+  entries.style.display = "none";
+  if (cat.note) {
+    const note = document.createElement("div");
+    note.className = "lib-note";
+    note.textContent = cat.note;
+    entries.appendChild(note);
+  }
+  cat.entries.forEach(e => {
+    const d = document.createElement("div");
+    d.className = "lib-entry";
+    d.innerHTML = `<code class="lib-fn">${e.fn}</code><span class="lib-desc">${e.desc}</span>`;
+    entries.appendChild(d);
+  });
+  btn.onclick = () => {
+    const open = entries.style.display !== "none";
+    entries.style.display = open ? "none" : "block";
+    btn.querySelector(".arrow").textContent = open ? "▸" : "▾";
+  };
+  catDiv.appendChild(btn);
+  catDiv.appendChild(entries);
+  libBody.appendChild(catDiv);
+});
+
+// ── Section toggle ──────────────────────────────────────────────────
+function toggleSection(btn) {
+  const body = btn.nextElementSibling;
+  const open = !body.classList.contains("hidden");
+  body.classList.toggle("hidden", open);
+  btn.querySelector(".arrow").textContent = open ? "▸" : "▾";
+}
+
+// ── Device chips ────────────────────────────────────────────────────
+function addDevice() {
+  const sel = document.getElementById("dev-select").value;
+  const chip = document.createElement("span");
+  chip.className = "chip";
+  chip.textContent = sel;
+  document.getElementById("chips").appendChild(chip);
+}
+
+// ── Code editor (stub — PyScript wires this up in real use) ─────────
+function runCode()  { appendOutput("[Run triggered — wire PyScript for real execution]"); }
+function stopCode() { appendOutput("[Stop triggered]"); }
+function appendOutput(msg) {
+  const box = document.getElementById("output-box");
+  box.textContent += msg + "\n";
+  box.scrollTop = box.scrollHeight;
+}
+
+// ── CEEO Relay (channels panel) ─────────────────────────────────────
+let chWs, chConnected = false, chReconnTimer;
+let chCancelled = false;
+
+function toPred(legoTopic) {
+  const cmd = (legoTopic || "/LEGO").trim().replace(/\/+$/, "") || "/LEGO";
+  const t = cmd.replace(/^\/LEGO\b/, "/PRED");
+  return t === cmd ? "/PRED" : t;
+}
+
+function chLog(msg, out = false) {
+  const box = document.getElementById("ch-log");
+  const line = document.createElement("div");
+  line.style.color = out ? "var(--muted)" : "var(--signal)";
+  line.textContent = msg;
+  box.appendChild(line);
+  // keep last 60 lines
+  while (box.children.length > 60) box.removeChild(box.firstChild);
+  box.scrollTop = box.scrollHeight;
+}
+
+function connectChannel() {
+  if (chCancelled) return;
+  chWs = new WebSocket(RELAY);
+  chWs.onopen = () => {
+    chConnected = true;
+    document.getElementById("ch-dot").classList.add("on");
+    const box = document.getElementById("ch-log");
+    box.innerHTML = "";
+    chLog("Connected to relay.", true);
+  };
+  chWs.onclose = () => {
+    chConnected = false;
+    document.getElementById("ch-dot").classList.remove("on");
+    if (!chCancelled) chReconnTimer = setTimeout(connectChannel, 2000);
+  };
+  chWs.onmessage = (ev) => {
+    try {
+      const m = JSON.parse(ev.data);
+      if (m.type === "data" && m.payload) {
+        const inner = JSON.parse(m.payload);
+        const topic = document.getElementById("ch-topic").value.trim() || "/LEGO";
+        if (inner.topic === topic) {
+          chLog("← " + inner.value);
+          // Expose as window.channelMsg for PyScript
+          window.channelMsg = inner.value;
+        }
+        // Also handle EI predictions on /PRED topic
+        const pred = toPred(topic);
+        if (inner.topic === pred) {
+          try {
+            const list = JSON.parse(inner.value);
+            if (Array.isArray(list)) renderEIBars(list);
+          } catch {}
+        }
+      }
+    } catch {}
+  };
+}
+
+function sendMsg() {
+  const topic = document.getElementById("ch-topic").value.trim() || "/LEGO";
+  const msg   = document.getElementById("ch-msg").value;
+  if (!chWs || chWs.readyState !== WebSocket.OPEN) return;
+  chWs.send(JSON.stringify({ type: "data", payload: JSON.stringify({ topic, value: msg }) }));
+  chLog("→ " + msg, true);
+  document.getElementById("ch-msg").value = "";
+}
+
+// Expose for phone page and PyScript
+window.channelSend = (msg) => {
+  const topic = document.getElementById("ch-topic").value.trim() || "/LEGO";
+  if (chWs && chWs.readyState === WebSocket.OPEN) {
+    chWs.send(JSON.stringify({ type: "data", payload: JSON.stringify({ topic, value: msg }) }));
+  }
+};
+
+function onChannelChange() {
+  // Re-subscribe handled by message filter in onmessage
+}
+
+// ── EI bar rendering (receives from relay /PRED topic) ───────────────
+let eiStaleTimer, eiLastPred = performance.now();
+
+function renderEIBars(list) {
+  if (!list.length) return;
+  eiLastPred = performance.now();
+  document.getElementById("ei-detected").style.display = "";
+  document.getElementById("ei-status").style.display = "none";
+
+  const top = list.reduce((a, b) => b.p > a.p ? b : a, list[0]);
+  document.getElementById("ei-class").textContent = top.c;
+  document.getElementById("ei-conf").textContent = Math.round(top.p * 100) + "%";
+
+  const barsEl = document.getElementById("ei-bars");
+  barsEl.innerHTML = list.map(x => `
+    <div class="bar-row">
+      <span class="bar-label">${x.c}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${Math.round(x.p*100)}%"></span></span>
+      <span class="bar-pct">${Math.round(x.p*100)}%</span>
+    </div>`).join("");
+
+  // Also publish top label to channel so channel.msg works
+  window.channelMsg = top.c;
+}
+
+// Stale detection
+eiStaleTimer = setInterval(() => {
+  if (performance.now() - eiLastPred > STALE_MS &&
+      document.getElementById("ei-detected").style.display !== "none") {
+    document.getElementById("ei-detected").style.display = "none";
+    const s = document.getElementById("ei-status");
+    s.style.display = "";
+    s.textContent = "No model running — open ei-phone.html on your phone.";
+    s.className = "status-line status-wait";
+  }
+}, 1000);
+
+// ── Boot ─────────────────────────────────────────────────────────────
+connectChannel();
+</script>
+
+<!-- PyScript (optional — uncomment for real LEGO execution) -->
+<!--
+<script defer src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+<script type="py" src="/maze/main.py" config="/maze/pyscript.toml"></script>
+-->
+</body>
+</html>

@@ -1,0 +1,21 @@
+--- "/home/claude/project/road-race/road-race copy 2/config.py"	2026-07-07 18:31:10.000000000 +0000
++++ road-race-fixed/config.py	2026-07-07 20:31:23.363604856 +0000
+@@ -57,6 +57,18 @@
+ # value with |value| <= MOTOR_DEADZONE is snapped to 0 before being sent to
+ # the motors, so small noise no longer causes movement.
+ MOTOR_DEADZONE = 1  # same units as MOTOR_SPEED_MIN/MAX (-100..100)
++
++# Raw joystick (-100..100) is divided by this before being saved as the
++# training label, giving labels roughly in -17..17. If you want the car to
++# move faster/slower overall, change this number — but do NOT add any other
++# multiplier in collect_data.py or drive.py. Both files must send
++# `apply_deadzone(speed)` to the motors with no extra scaling, so that a
++# given label value means the exact same physical motor command whether a
++# human demonstrated it or the trained model predicted it. (A previous
++# version of this codebase divided by 10 in collect_data.py and multiplied
++# by 3 in drive.py — a hidden 30x mismatch between demonstrated and deployed
++# speed — which was a major cause of the car overshooting and pushing the
++# target instead of stopping on it.)
+ MOTOR_DIVIDE_BY = 6
+ 
+ 

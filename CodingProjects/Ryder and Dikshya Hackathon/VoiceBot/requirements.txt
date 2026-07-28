@@ -1,0 +1,5 @@
+ai-edge-litert
+numpy
+sounddevice
+scipy
+librosa

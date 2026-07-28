@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>EI → Maze Lab</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #0d0f1a;
+    --surface: #13162a;
+    --border:  #252a42;
+    --ink:     #e8eaf6;
+    --muted:   #5c6394;
+    --accent:  #4f6ef7;
+    --signal:  #00e5cc;
+    --recv:    #9c6bff;
+    --green:   #00d68f;
+    --red:     #ff4d6a;
+    --yellow:  #ffc107;
+  }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    font-size: 15px; min-height: 100dvh;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: .75rem 1rem;
+    display: flex; align-items: center; gap: .6rem;
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--signal); box-shadow: 0 0 7px var(--signal);
+    animation: pulse 2.5s ease-in-out infinite; flex-shrink: 0;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+  header h1 { font-size: .95rem; font-weight: 700; color: var(--signal); }
+  header span { font-size: .75rem; color: var(--muted); }
+
+  main { padding: 1rem; display: flex; flex-direction: column; gap: .85rem; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: .9rem 1rem;
+  }
+
+  .field { margin-bottom: .7rem; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block; font-size: .72rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .07em; margin-bottom: .3rem;
+  }
+  .field input {
+    width: 100%;
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--ink); border-radius: 7px;
+    padding: .6rem .75rem; font-size: .9rem; outline: none;
+    -webkit-appearance: none;
+    transition: border-color .15s;
+  }
+  .field input:focus { border-color: var(--accent); }
+
+  .hint {
+    font-size: .72rem; color: var(--muted); line-height: 1.55;
+    padding: .4rem .5rem;
+    background: rgba(79,110,247,.07);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 6px 6px 0; margin-bottom: .7rem;
+  }
+  .hint strong { color: var(--ink); }
+  .hint a { color: var(--accent); }
+  .hint code { color: var(--signal); font-size: .7rem; }
+
+  .btn {
+    display: block; width: 100%;
+    padding: .75rem; border: none; border-radius: 8px;
+    font-size: .95rem; font-weight: 700; cursor: pointer;
+    -webkit-appearance: none; transition: opacity .15s;
+  }
+  .btn:active { opacity: .75; }
+  .btn-start { background: var(--accent); color: #fff; }
+  .btn-stop  { background: var(--red);    color: #fff; margin-top: .5rem; }
+
+  #status {
+    font-size: .78rem; min-height: 1.2em; line-height: 1.5;
+    padding: .1rem 0;
+  }
+  .s-wait  { color: var(--yellow); }
+  .s-live  { color: var(--green); }
+  .s-error { color: var(--red); }
+
+  video {
+    width: 100%; border-radius: 8px; display: block;
+    max-height: 52vw; object-fit: cover; background: #000;
+    margin: .6rem 0;
+  }
+
+  .result-row {
+    display: flex; gap: 1.5rem; padding: .5rem 0;
+    border-bottom: 1px solid var(--border); margin-bottom: .5rem;
+  }
+  .result-item { font-size: .78rem; color: var(--muted); }
+  .result-item strong { display: block; color: var(--ink); font-size: 1rem; margin-top: .1rem; }
+
+  .bar-row { display: flex; align-items: center; gap: .5rem; margin-bottom: .3rem; }
+  .bar-label {
+    width: 88px; font-size: .75rem; color: var(--ink); flex-shrink: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .bar-track { flex: 1; background: var(--border); border-radius: 4px; height: 12px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--recv); border-radius: 4px; transition: width .2s ease; }
+  .bar-pct { width: 34px; text-align: right; font-size: .7rem; color: var(--muted); flex-shrink: 0; }
+
+  #run-panel { display: none; }
+  #result-card { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="dot"></div>
+  <h1>Edge Impulse</h1>
+  <span>→ Maze Lab</span>
+</header>
+
+<main>
+
+<!-- Setup -->
+<div id="setup-panel">
+  <div class="card">
+    <div class="hint">
+      <strong>How to get your WASM URL:</strong><br>
+      In EI Studio → Deployment → search "WebAssembly" → Build.<br>
+      Download the zip, upload <code>edge-impulse-standalone.js</code> and
+      <code>edge-impulse-standalone.wasm</code> to GitHub Pages (or any static host).<br>
+      Paste the base URL below (e.g. <code>https://you.github.io/model/</code>).
+    </div>
+
+    <div class="field">
+      <label>EI WASM Base URL</label>
+      <input id="inp-wasm" type="url" placeholder="https://you.github.io/my-model/" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="field">
+      <label>CEEO Channel (e.g. /LEGO)</label>
+      <input id="inp-channel" type="text" value="/LEGO" autocorrect="off" spellcheck="false">
+    </div>
+    <button class="btn btn-start" id="btn-start">Start</button>
+  </div>
+
+  <div class="card" style="font-size:.72rem;color:var(--muted);line-height:1.6;">
+    <strong style="color:var(--ink);display:block;margin-bottom:.3rem;">What this page does</strong>
+    Opens your camera, runs your Edge Impulse image classifier entirely on this device
+    (no internet required after loading), and sends the top prediction to the Maze Lab
+    laptop over the CEEO relay. Read it in Python with
+    <code style="color:var(--signal)">channel.msg</code>.
+  </div>
+</div>
+
+<!-- Running -->
+<div id="run-panel">
+  <div class="card">
+    <div id="status" class="s-wait">Loading model…</div>
+    <video id="cam" autoplay playsinline muted></video>
+  </div>
+
+  <div class="card" id="result-card">
+    <div class="result-row">
+      <div class="result-item">Detected <strong id="top-class">—</strong></div>
+      <div class="result-item">Confidence <strong id="top-conf">0%</strong></div>
+    </div>
+    <div id="bars"></div>
+  </div>
+
+  <button class="btn btn-stop" id="btn-stop">Stop</button>
+</div>
+
+</main>
+
+<script>
+const RELAY      = "wss://@chrisrogers.pyscriptapps.com/talking-on-a-channel/api/channels/hackathon";
+const INFER_MS   = 200; // classify every 200ms
+
+let ws, stream, inferTimer, classifier;
+const $ = id => document.getElementById(id);
+
+// Mirror teachable.ts toPred() exactly — so bars appear on laptop
+function toPred(legoTopic) {
+  const cmd = (legoTopic || "/LEGO").trim().replace(/\/+$/, "") || "/LEGO";
+  const t = cmd.replace(/^\/LEGO\b/, "/PRED");
+  return t === cmd ? "/PRED" : t;
+}
+
+function setStatus(msg, cls = "s-wait") {
+  const el = $("status");
+  el.textContent = msg;
+  el.className = cls;
+}
+
+// ── Start ──────────────────────────────────────────────────────────
+$("btn-start").addEventListener("click", async () => {
+  const wasmBase = $("inp-wasm").value.trim().replace(/\/?$/, "/");
+  const channel  = $("inp-channel").value.trim() || "/LEGO";
+
+  if (!wasmBase || wasmBase === "/") {
+    alert("Please enter your EI WASM base URL.");
+    return;
+  }
+
+  $("setup-panel").style.display = "none";
+  $("run-panel").style.display   = "";
+  setStatus("Requesting camera…");
+
+  // 1. Camera
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 320 }, height: { ideal: 320 } },
+      audio: false,
+    });
+    $("cam").srcObject = stream;
+  } catch (e) {
+    setStatus("Camera error: " + e.message, "s-error"); return;
+  }
+
+  // 2. Load EI WASM classifier
+  setStatus("Loading EI model…");
+  try {
+    await loadScript(wasmBase + "edge-impulse-standalone.js");
+    // Wait for the EdgeImpulseClassifier global to appear
+    await waitFor(() => typeof EdgeImpulseClassifier !== "undefined", 10000);
+    classifier = new EdgeImpulseClassifier();
+    await classifier.init();
+    setStatus("Model loaded — connecting to relay…");
+  } catch (e) {
+    setStatus("Model load failed: " + e.message + ". Check your WASM URL.", "s-error"); return;
+  }
+
+  // 3. WASM file (loaded separately by the standalone .js)
+  // Patch Module.locateFile to point to the correct wasm URL
+  if (typeof Module !== "undefined") {
+    const origLocate = Module.locateFile || (f => f);
+    Module.locateFile = (f) => f.endsWith(".wasm") ? wasmBase + f : origLocate(f);
+  }
+
+  // 4. Connect relay
+  const predTopic = toPred(channel);
+  connectRelay(predTopic, channel);
+
+  $("btn-stop").addEventListener("click", stop, { once: true });
+});
+
+// ── Relay connection ───────────────────────────────────────────────
+let relayCancelled = false;
+function connectRelay(predTopic, channel) {
+  relayCancelled = false;
+  ws = new WebSocket(RELAY);
+  ws.onopen  = () => {
+    setStatus("Live — sending to " + predTopic, "s-live");
+    startInference(predTopic);
+  };
+  ws.onerror = () => setStatus("Relay error", "s-error");
+  ws.onclose = () => {
+    clearInterval(inferTimer);
+    if (!relayCancelled) {
+      setStatus("Relay disconnected — reconnecting…", "s-wait");
+      setTimeout(() => connectRelay(predTopic, channel), 2000);
+    }
+  };
+}
+
+// ── Inference loop ─────────────────────────────────────────────────
+function startInference(predTopic) {
+  const video  = $("cam");
+  const canvas = document.createElement("canvas");
+
+  inferTimer = setInterval(async () => {
+    if (video.readyState < 2 || !classifier) return;
+
+    // Resize to model's expected input (EI standalone handles resizing internally,
+    // but we pass a reasonable capture size)
+    const size = 96;
+    canvas.width  = size;
+    canvas.height = size;
+    canvas.getContext("2d").drawImage(video, 0, 0, size, size);
+
+    // Get raw pixel data for EI classifier
+    const ctx  = canvas.getContext("2d");
+    const imgData = ctx.getImageData(0, 0, size, size);
+
+    // Convert to flat array of RGB values (EI standalone format)
+    const features = [];
+    for (let i = 0; i < imgData.data.length; i += 4) {
+      const r = imgData.data[i];
+      const g = imgData.data[i + 1];
+      const b = imgData.data[i + 2];
+      // Pack as 0xRRGGBB
+      features.push((r << 16) | (g << 8) | b);
+    }
+
+    try {
+      const result = await classifier.classify(features);
+      if (!result || !result.results) return;
+
+      // Normalise to [{c, p}] format
+      const list = result.results
+        .map(r => ({ c: r.label, p: r.value }))
+        .sort((a, b) => b.p - a.p);
+
+      if (list.length) {
+        renderBars(list);
+        publish(predTopic, list);
+      }
+    } catch (e) {
+      // Silent — keep trying
+    }
+  }, INFER_MS);
+}
+
+// ── Render ─────────────────────────────────────────────────────────
+function renderBars(list) {
+  $("result-card").style.display = "";
+  const top = list[0];
+  $("top-class").textContent = top.c;
+  $("top-conf").textContent  = Math.round(top.p * 100) + "%";
+  $("bars").innerHTML = list.map(x => `
+    <div class="bar-row">
+      <span class="bar-label">${x.c}</span>
+      <span class="bar-track">
+        <span class="bar-fill" style="width:${Math.round(x.p * 100)}%"></span>
+      </span>
+      <span class="bar-pct">${Math.round(x.p * 100)}%</span>
+    </div>`).join("");
+}
+
+// ── Publish to relay ───────────────────────────────────────────────
+// Exact same format as original Teachable Machine phone page
+function publish(topic, list) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({
+    type: "data",
+    payload: JSON.stringify({ topic, value: JSON.stringify(list) }),
+  }));
+}
+
+// ── Stop ───────────────────────────────────────────────────────────
+function stop() {
+  relayCancelled = true;
+  clearInterval(inferTimer);
+  if (ws) ws.close();
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  $("run-panel").style.display   = "none";
+  $("setup-panel").style.display = "";
+  setStatus("", "");
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = src; s.onload = res; s.onerror = () => rej(new Error("Failed to load: " + src));
+    document.head.appendChild(s);
+  });
+}
+function waitFor(condition, timeoutMs = 5000) {
+  return new Promise((res, rej) => {
+    const start = Date.now();
+    const check = () => {
+      if (condition()) return res();
+      if (Date.now() - start > timeoutMs) return rej(new Error("Timeout waiting for condition"));
+      setTimeout(check, 100);
+    };
+    check();
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Edge Impulse → Maze Lab</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0f1117;
+      --surface: #1a1d27;
+      --border:  #2a2d3a;
+      --ink:     #e2e8f0;
+      --muted:   #64748b;
+      --accent:  #3b82f6;
+      --signal:  #22d3ee;
+      --recv:    #a78bfa;
+      --green:   #22c55e;
+      --red:     #ef4444;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      min-height: 100dvh;
+      padding: 0;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .pulse {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--signal);
+      box-shadow: 0 0 6px var(--signal);
+      flex-shrink: 0;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+    header h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--signal);
+      letter-spacing: 0.02em;
+    }
+
+    header span {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    main { padding: 1rem; display: flex; flex-direction: column; gap: 0.9rem; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 0.35rem;
+    }
+
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--ink);
+      border-radius: 7px;
+      padding: 0.65rem 0.75rem;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+    }
+    input:focus { border-color: var(--accent); }
+
+    .field { margin-bottom: 0.75rem; }
+    .field:last-child { margin-bottom: 0; }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 0.8rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      -webkit-appearance: none;
+    }
+    .btn:active { opacity: 0.75; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-danger  { background: var(--red);    color: #fff; }
+
+    #status-bar {
+      font-size: 0.8rem;
+      color: var(--muted);
+      min-height: 1.2em;
+      padding: 0.1rem 0;
+    }
+    #status-bar.live   { color: var(--green); }
+    #status-bar.error  { color: var(--red); }
+    #status-bar.warn   { color: #f59e0b; }
+
+    video {
+      width: 100%;
+      border-radius: 8px;
+      display: block;
+      max-height: 55vw;
+      object-fit: cover;
+      background: #000;
+    }
+
+    .result-row {
+      display: flex;
+      gap: 1.5rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0.5rem;
+    }
+    .result-item { font-size: 0.82rem; color: var(--muted); }
+    .result-item strong { color: var(--ink); font-size: 1rem; display: block; margin-top: 0.1rem; }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.3rem;
+    }
+    .bar-label {
+      width: 90px;
+      font-size: 0.78rem;
+      color: var(--ink);
+      flex-shrink: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .bar-track {
+      flex: 1;
+      background: var(--border);
+      border-radius: 4px;
+      height: 12px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      background: var(--recv);
+      border-radius: 4px;
+      transition: width 0.2s ease;
+    }
+    .bar-pct {
+      width: 36px;
+      text-align: right;
+      font-size: 0.72rem;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .hint a { color: var(--accent); }
+
+    #run-panel { display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="pulse"></div>
+  <h1>Edge Impulse</h1>
+  <span>→ Maze Lab</span>
+</header>
+
+<main>
+
+  <!-- Setup form -->
+  <div id="setup-panel">
+    <div class="card">
+      <div class="field">
+        <label>CEEO Channel</label>
+        <input id="inp-channel" type="text" value="/LEGO" autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label>EI API Key</label>
+        <input id="inp-apikey" type="password" placeholder="ei_..." autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
+      <p class="hint" style="margin-bottom:0.75rem;">
+        Get your API key from
+        <a href="https://studio.edgeimpulse.com" target="_blank">Edge Impulse Studio</a>
+        → your project → Keys.
+      </p>
+      <button class="btn btn-primary" id="btn-start">Start</button>
+    </div>
+
+    <div class="card">
+      <p class="hint">
+        <strong style="color:var(--ink);display:block;margin-bottom:0.3rem;">How it works</strong>
+        This page captures your camera, classifies each frame using your Edge Impulse model,
+        and sends the top prediction over the CEEO relay to the Maze Lab laptop.
+        Read it in Python with <code style="color:var(--signal);">channel.msg</code>.
+      </p>
+    </div>
+  </div>
+
+  <!-- Running panel -->
+  <div id="run-panel">
+    <div class="card">
+      <div id="status-bar">Connecting…</div>
+      <video id="cam" autoplay playsinline muted></video>
+    </div>
+
+    <div class="card" id="result-card" style="display:none">
+      <div class="result-row">
+        <div class="result-item">Detected <strong id="top-class">—</strong></div>
+        <div class="result-item">Confidence <strong id="top-conf">0%</strong></div>
+      </div>
+      <div id="bars"></div>
+    </div>
+
+    <button class="btn btn-danger" id="btn-stop">Stop</button>
+  </div>
+
+</main>
+
+<script>
+  const RELAY = "wss://@chrisrogers.pyscriptapps.com/talking-on-a-channel/api/channels/hackathon";
+  const INFER_MS = 300; // ms between inference calls
+
+  let ws, stream, inferTimer;
+
+  const $  = id => document.getElementById(id);
+  const el = id => $(id);
+
+  // Mirror teachable.ts toPred() exactly
+  function toPred(legoTopic) {
+    const cmd = (legoTopic || "/LEGO").trim().replace(/\/+$/, "") || "/LEGO";
+    const t = cmd.replace(/^\/LEGO\b/, "/PRED");
+    return t === cmd ? "/PRED" : t;
+  }
+
+  function setStatus(msg, cls = "") {
+    const s = $("status-bar");
+    s.textContent = msg;
+    s.className = cls;
+  }
+
+  // ── Start ─────────────────────────────────────────────────────────
+  $("btn-start").addEventListener("click", async () => {
+    const channel = $("inp-channel").value.trim() || "/LEGO";
+    const apiKey  = $("inp-apikey").value.trim();
+    if (!apiKey) { alert("Please enter your EI API key."); return; }
+
+    $("setup-panel").style.display = "none";
+    $("run-panel").style.display   = "";
+    setStatus("Requesting camera…", "warn");
+
+    // Camera
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 320 }, height: { ideal: 320 } },
+        audio: false,
+      });
+      $("cam").srcObject = stream;
+    } catch (e) {
+      setStatus("Camera error: " + e.message, "error");
+      return;
+    }
+
+    // WebSocket relay
+    setStatus("Connecting to relay…", "warn");
+    const predTopic = toPred(channel);
+
+    const connectWs = () => {
+      ws = new WebSocket(RELAY);
+      ws.onopen  = () => {
+        setStatus("Live — sending to " + predTopic, "live");
+        startInference(apiKey, predTopic);
+      };
+      ws.onerror = () => setStatus("Relay error", "error");
+      ws.onclose = () => {
+        clearInterval(inferTimer);
+        setStatus("Relay disconnected — reconnecting…", "warn");
+        setTimeout(connectWs, 2000);
+      };
+    };
+    connectWs();
+
+    $("btn-stop").addEventListener("click", stop, { once: true });
+  });
+
+  // ── Inference loop ────────────────────────────────────────────────
+  function startInference(apiKey, predTopic) {
+    const video  = $("cam");
+    const canvas = document.createElement("canvas");
+
+    inferTimer = setInterval(async () => {
+      if (video.readyState < 2 || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+      // Resize to 96×96 for EI image classifiers (common input size)
+      canvas.width  = 96;
+      canvas.height = 96;
+      canvas.getContext("2d").drawImage(video, 0, 0, 96, 96);
+      const b64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+
+      try {
+        // EI hosted inference endpoint — works with any image classification project
+        const res = await fetch("https://studio.edgeimpulse.com/v1/api/classify-image", {
+          method: "POST",
+          headers: {
+            "x-api-key": apiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ image: b64 }),
+        });
+
+        if (res.status === 404 || res.status === 405) {
+          // Endpoint not found — show helpful message and stop polling
+          clearInterval(inferTimer);
+          setStatus("EI classify endpoint not available. See console for fallback instructions.", "error");
+          console.warn(
+            "The /v1/api/classify-image endpoint returned", res.status,
+            "\nFallback: download your EI WebAssembly build, host the two .js/.wasm files",
+            "on GitHub Pages, then update the fetch URL here to your hosted run-impulse.js endpoint."
+          );
+          return;
+        }
+
+        if (!res.ok) {
+          setStatus("EI error " + res.status, "error");
+          return;
+        }
+
+        const data = await res.json();
+
+        // Handle both possible response shapes EI might return
+        let list = [];
+        if (data.result?.classification) {
+          list = Object.entries(data.result.classification)
+            .map(([c, p]) => ({ c, p: Number(p) }))
+            .sort((a, b) => b.p - a.p);
+        } else if (Array.isArray(data.result)) {
+          list = data.result
+            .map(r => ({ c: r.label, p: r.value }))
+            .sort((a, b) => b.p - a.p);
+        }
+
+        if (list.length) {
+          renderBars(list);
+          publish(predTopic, list);
+        }
+      } catch (e) {
+        // Network errors — keep trying silently
+        console.warn("Inference fetch error:", e.message);
+      }
+    }, INFER_MS);
+  }
+
+  // ── Render ────────────────────────────────────────────────────────
+  function renderBars(list) {
+    $("result-card").style.display = "";
+    const top = list[0];
+    $("top-class").textContent = top.c;
+    $("top-conf").textContent  = Math.round(top.p * 100) + "%";
+    $("bars").innerHTML = list.map(x => `
+      <div class="bar-row">
+        <span class="bar-label">${x.c}</span>
+        <span class="bar-track">
+          <span class="bar-fill" style="width:${Math.round(x.p * 100)}%"></span>
+        </span>
+        <span class="bar-pct">${Math.round(x.p * 100)}%</span>
+      </div>`).join("");
+  }
+
+  // ── Publish to relay ──────────────────────────────────────────────
+  function publish(topic, list) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    // Exact same payload format as the original Teachable Machine phone page
+    ws.send(JSON.stringify({
+      type: "data",
+      payload: JSON.stringify({ topic, value: JSON.stringify(list) }),
+    }));
+  }
+
+  // ── Stop ──────────────────────────────────────────────────────────
+  function stop() {
+    clearInterval(inferTimer);
+    if (ws) ws.close();
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    $("run-panel").style.display   = "none";
+    $("setup-panel").style.display = "";
+    setStatus("", "");
+  }
+</script>
+</body>
+</html>

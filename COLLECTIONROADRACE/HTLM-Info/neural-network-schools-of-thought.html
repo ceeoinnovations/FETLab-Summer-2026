@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Neural network policy — schools of thought (corrected convergence)</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; background:#f7f6f2; color:#2c2c2a; margin:0; padding:32px 16px 80px; }
+  .wrap { max-width: 1400px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  h2 { font-size: 17px; font-weight: 600; margin: 48px 0 4px; }
+  p { font-size: 14px; line-height: 1.6; color:#444; max-width: 820px; }
+  ul { font-size: 14px; line-height: 1.6; color:#444; max-width: 820px; }
+  .legend { display:flex; gap:20px; flex-wrap:wrap; font-size:12px; margin: 12px 0 20px; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .swatch { width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .diagram-scroll { overflow-x:auto; border:1px solid #ddd9cd; border-radius:10px; background:#fff; padding:10px; }
+  svg { display:block; }
+  text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .t  { font-size:13px; fill:#2c2c2a; }
+  .th { font-size:13px; font-weight:600; fill:#2c2c2a; }
+  .ts { font-size:11px; fill:#5f5e5a; }
+  .badge { font-size:10px; font-weight:600; }
+  .new-tag { font-size:9px; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Neural network policy — schools of thought (corrected convergence)</h1>
+<p>Same taxonomy as before. This version fixes the convergence logic: the 6 tools under <b>direct action imitation</b> each operate on a different axis of the system (input, output, representation, supervision, training loop, runtime) rather than being competing alternatives — so nearly all of them stack together, not just two of them.</p>
+
+<div class="legend">
+  <span><span class="swatch" style="background:#B5D4F4"></span>Behavior cloning family</span>
+  <span><span class="swatch" style="background:#C0DD97"></span>Reinforcement learning family</span>
+  <span><span class="swatch" style="background:#CECBF6"></span>Self-supervised world modeling</span>
+  <span><span class="swatch" style="background:#FAC775"></span>Tool-augmented variant</span>
+  <span><span class="swatch" style="background:#D3D1C7"></span>Converged / combined variant</span>
+  <span>✓ = functional on its own</span>
+  <span style="color:#993c1d">★ = added after research</span>
+</div>
+
+<h2>Which axis each tool sits on</h2>
+<ul>
+<li><b>Input</b> — frame stacking / optical flow (what the network sees)</li>
+<li><b>Output</b> — action chunking (what shape the network's prediction takes)</li>
+<li><b>Representation</b> — self-supervised backbone + thin policy head (how the visual features are learned)</li>
+<li><b>Supervision</b> — multi-task / auxiliary loss (what extra signal trains the shared backbone)</li>
+<li><b>Training loop</b> — DAgger (how the training data itself is gathered)</li>
+<li><b>Runtime</b> — model-based control (what wraps the trained policy when it's actually driving)</li>
+</ul>
+<p>Because each sits on its own axis, picking one doesn't use up your ability to pick another — you could stack all six into one policy: a frame-stacked, chunked-output, self-supervised-backbone, multi-task-trained, DAgger-corrected policy that's additionally wrapped in model-based re-planning at runtime. That's a mouthful, but it's a coherent, buildable system. The one caveat worth flagging: action chunking and model-based control both touch "how often do we commit to a plan," so combining them means deciding whether to replan every frame (which partly defeats chunking's point) or only every few frames — not a conflict, just a design choice the other four pairings don't force on you.</p>
+
+<h2 id="tree-a">Diagram A — implicit style (badge marks "good enough alone")</h2>
+<p>All 6 tools now converge into a single combined box, since all 6 are compatible with each other.</p>
+
+<div class="diagram-scroll">
+<svg width="1860" height="670" viewBox="0 0 1860 670" role="img">
+<title>Tree A: implicit badge style, all 6 tools converging</title>
+<desc>Three top-level families branching into concrete variants, with direct action imitation expanded into six compatible tool-augmented variants that all converge into one fully-augmented combined box.</desc>
+<defs>
+<marker id="arrowA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="#8a8a86" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<line x1="930" y1="100" x2="390" y2="150" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="930" y1="100" x2="1110" y2="150" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="930" y1="100" x2="1650" y2="150" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+
+<line x1="390" y1="210" x2="120" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="390" y1="210" x2="300" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="390" y1="210" x2="480" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="390" y1="210" x2="660" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+
+<line x1="1110" y1="210" x2="840" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="1110" y1="210" x2="1020" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="1110" y1="210" x2="1200" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="1110" y1="210" x2="1380" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+
+<line x1="1650" y1="210" x2="1560" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="1650" y1="210" x2="1740" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+
+<!-- direct action imitation -> 6 tool variants -->
+<line x1="120" y1="340" x2="100" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="120" y1="340" x2="280" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="120" y1="340" x2="460" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="120" y1="340" x2="640" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="120" y1="340" x2="820" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="120" y1="340" x2="1000" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+
+<!-- convergence: all 6 tools feed one combined box -->
+<line x1="100" y1="490" x2="420" y2="530" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="280" y1="490" x2="470" y2="530" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="460" y1="490" x2="520" y2="530" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="640" y1="490" x2="580" y2="530" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="820" y1="490" x2="630" y2="530" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+<line x1="1000" y1="490" x2="680" y2="530" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowA)"/>
+
+<!-- ROOT -->
+<rect x="790" y="50" width="280" height="50" rx="8" fill="#F1EFE8" stroke="#b4b2a9" stroke-width="0.5"/>
+<text class="th" x="930" y="79" text-anchor="middle">Neural network policy</text>
+
+<!-- TIER1 -->
+<rect x="240" y="150" width="300" height="60" rx="8" fill="#B5D4F4" stroke="#378ADD" stroke-width="0.5"/>
+<text class="th" x="390" y="176" text-anchor="middle" fill="#042C53">Behavior cloning</text>
+<text class="ts" x="390" y="196" text-anchor="middle" fill="#185FA5">clones a demonstrator</text>
+
+<rect x="960" y="150" width="300" height="60" rx="8" fill="#C0DD97" stroke="#639922" stroke-width="0.5"/>
+<text class="th" x="1110" y="176" text-anchor="middle" fill="#173404">Reinforcement learning</text>
+<text class="ts" x="1110" y="196" text-anchor="middle" fill="#3B6D11">reward/fitness-driven</text>
+
+<rect x="1500" y="150" width="300" height="60" rx="8" fill="#CECBF6" stroke="#7F77DD" stroke-width="0.5"/>
+<text class="th" x="1650" y="176" text-anchor="middle" fill="#26215C">Self-supervised world model</text>
+<text class="ts" x="1650" y="196" text-anchor="middle" fill="#3C3489">learns dynamics, no reward/demo</text>
+
+<!-- TIER2: BC children -->
+<rect x="40" y="270" width="160" height="70" rx="8" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+<text class="th" x="120" y="292" text-anchor="middle" fill="#042C53">Direct action</text>
+<text class="th" x="120" y="308" text-anchor="middle" fill="#042C53">imitation</text>
+<text class="badge" x="120" y="324" text-anchor="middle" fill="#0F6E56">✓ standalone (#1, #5–8)</text>
+
+<rect x="220" y="270" width="160" height="70" rx="8" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+<text class="th" x="300" y="288" text-anchor="middle" fill="#042C53">Visual servoing</text>
+<text class="ts" x="300" y="304" text-anchor="middle" fill="#185FA5">perception + control law</text>
+<text class="badge" x="300" y="320" text-anchor="middle" fill="#0F6E56">✓ standalone (#2–4)</text>
+
+<rect x="400" y="270" width="160" height="70" rx="8" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+<text class="th" x="480" y="288" text-anchor="middle" fill="#042C53">Learning from</text>
+<text class="th" x="480" y="304" text-anchor="middle" fill="#042C53">observation</text>
+<text class="badge" x="480" y="320" text-anchor="middle" fill="#0F6E56">✓ video-only</text>
+
+<rect x="580" y="270" width="160" height="70" rx="8" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+<text class="th" x="660" y="288" text-anchor="middle" fill="#042C53">VLA / foundation</text>
+<text class="th" x="660" y="304" text-anchor="middle" fill="#042C53">policies</text>
+<text class="new-tag" x="660" y="320" text-anchor="middle" fill="#993c1d">★ blends w/ world model</text>
+
+<!-- TIER2: RL children -->
+<rect x="760" y="270" width="160" height="70" rx="8" fill="#EAF3DE" stroke="#639922" stroke-width="0.5"/>
+<text class="th" x="840" y="292" text-anchor="middle" fill="#173404">Standard RL</text>
+<text class="ts" x="840" y="308" text-anchor="middle" fill="#3B6D11">hand-specified reward</text>
+<text class="badge" x="840" y="322" text-anchor="middle" fill="#0F6E56">✓ standalone</text>
+
+<rect x="940" y="270" width="160" height="70" rx="8" fill="#EAF3DE" stroke="#639922" stroke-width="0.5"/>
+<text class="th" x="1020" y="292" text-anchor="middle" fill="#173404">Offline RL</text>
+<text class="ts" x="1020" y="308" text-anchor="middle" fill="#3B6D11">fixed dataset, reward-based</text>
+<text class="new-tag" x="1020" y="322" text-anchor="middle" fill="#993c1d">★ can beat the demonstrator</text>
+
+<rect x="1120" y="270" width="160" height="70" rx="8" fill="#EAF3DE" stroke="#639922" stroke-width="0.5"/>
+<text class="th" x="1200" y="288" text-anchor="middle" fill="#173404">Inverse RL /</text>
+<text class="th" x="1200" y="304" text-anchor="middle" fill="#173404">reward learning</text>
+<text class="badge" x="1200" y="320" text-anchor="middle" fill="#0F6E56">✓ standalone</text>
+
+<rect x="1300" y="270" width="160" height="70" rx="8" fill="#EAF3DE" stroke="#639922" stroke-width="0.5"/>
+<text class="th" x="1380" y="288" text-anchor="middle" fill="#173404">Evolutionary /</text>
+<text class="th" x="1380" y="304" text-anchor="middle" fill="#173404">gradient-free search</text>
+<text class="badge" x="1380" y="320" text-anchor="middle" fill="#0F6E56">✓ standalone</text>
+
+<!-- TIER2: World model children -->
+<rect x="1480" y="270" width="160" height="70" rx="8" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.5"/>
+<text class="th" x="1560" y="288" text-anchor="middle" fill="#26215C">Model-predictive</text>
+<text class="th" x="1560" y="304" text-anchor="middle" fill="#26215C">control (planning)</text>
+<text class="badge" x="1560" y="320" text-anchor="middle" fill="#0F6E56">✓ standalone</text>
+
+<rect x="1660" y="270" width="160" height="70" rx="8" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.5"/>
+<text class="th" x="1740" y="288" text-anchor="middle" fill="#26215C">Active inference</text>
+<text class="ts" x="1740" y="304" text-anchor="middle" fill="#3C3489">goal = prior, not reward</text>
+<text class="new-tag" x="1740" y="320" text-anchor="middle" fill="#993c1d">★ unifies perception + action</text>
+
+<!-- TIER3: 6 tool-augmented variants -->
+<rect x="20" y="420" width="160" height="70" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="0.5"/>
+<text class="th" x="100" y="440" text-anchor="middle" fill="#412402">Frame stacking /</text>
+<text class="th" x="100" y="456" text-anchor="middle" fill="#412402">optical flow</text>
+<text class="ts" x="100" y="472" text-anchor="middle" fill="#854F0B">axis: input</text>
+
+<rect x="200" y="420" width="160" height="70" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="0.5"/>
+<text class="th" x="280" y="448" text-anchor="middle" fill="#412402">Action chunking</text>
+<text class="ts" x="280" y="464" text-anchor="middle" fill="#854F0B">axis: output</text>
+
+<rect x="380" y="420" width="160" height="70" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="0.5"/>
+<text class="th" x="460" y="440" text-anchor="middle" fill="#412402">Self-supervised</text>
+<text class="th" x="460" y="456" text-anchor="middle" fill="#412402">backbone + thin head</text>
+<text class="ts" x="460" y="472" text-anchor="middle" fill="#854F0B">axis: representation</text>
+
+<rect x="560" y="420" width="160" height="70" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="0.5"/>
+<text class="th" x="640" y="440" text-anchor="middle" fill="#412402">Multi-task /</text>
+<text class="th" x="640" y="456" text-anchor="middle" fill="#412402">auxiliary loss</text>
+<text class="ts" x="640" y="472" text-anchor="middle" fill="#854F0B">axis: supervision</text>
+
+<rect x="740" y="420" width="160" height="70" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="0.5"/>
+<text class="th" x="820" y="448" text-anchor="middle" fill="#412402">+ DAgger</text>
+<text class="ts" x="820" y="464" text-anchor="middle" fill="#854F0B">axis: training loop</text>
+
+<rect x="920" y="420" width="160" height="70" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="0.5"/>
+<text class="th" x="1000" y="440" text-anchor="middle" fill="#412402">+ model-based</text>
+<text class="th" x="1000" y="456" text-anchor="middle" fill="#412402">control</text>
+<text class="ts" x="1000" y="472" text-anchor="middle" fill="#854F0B">axis: runtime</text>
+
+<!-- TIER4: single convergence box -->
+<rect x="400" y="530" width="300" height="70" rx="8" fill="#D3D1C7" stroke="#888780" stroke-width="0.5"/>
+<text class="th" x="550" y="550" text-anchor="middle" fill="#2C2C2A">Direct action imitation +</text>
+<text class="th" x="550" y="566" text-anchor="middle" fill="#2C2C2A">all 6 enhancements</text>
+<text class="ts" x="550" y="582" text-anchor="middle" fill="#5f5e5a">fully-augmented policy</text>
+
+<text class="ts" x="550" y="630" text-anchor="middle" fill="#888">different axes → nearly all compatible, not just a select pair</text>
+</svg>
+</div>
+
+<h2 id="tree-b">Diagram B — explicit style ("plain" drawn as its own branch)</h2>
+<p>Same 6 tools, with <b>plain (no tool)</b> drawn as an explicit 7th sibling that does not feed into the convergence box.</p>
+
+<div class="diagram-scroll">
+<svg width="1860" height="670" viewBox="0 0 1860 670" role="img">
+<title>Tree B: explicit branch style, all 6 tools converging</title>
+<desc>Same taxonomy as Tree A, with direct action imitation's tool row including an explicit plain no-tool sibling that does not converge, while the other six compatible tools all feed into one combined box.</desc>
+<defs>
+<marker id="arrowB" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="#8a8a86" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<line x1="930" y1="100" x2="390" y2="150" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="930" y1="100" x2="1110" y2="150" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="930" y1="100" x2="1650" y2="150" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+
+<line x1="390" y1="210" x2="120" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="390" y1="210" x2="300" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="390" y1="210" x2="480" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="390" y1="210" x2="660" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+
+<line x1="1110" y1="210" x2="840" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="1110" y1="210" x2="1020" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="1110" y1="210" x2="1200" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="1110" y1="210" x2="1380" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+
+<line x1="1650" y1="210" x2="1560" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="1650" y1="210" x2="1740" y2="270" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+
+<!-- direct action imitation -> 7 tool variants -->
+<line x1="120" y1="340" x2="100" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="120" y1="340" x2="280" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="120" y1="340" x2="460" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="120" y1="340" x2="640" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="120" y1="340" x2="820" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="120" y1="340" x2="1000" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="120" y1="340" x2="1180" y2="420" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+
+<!-- convergence: all 6 except plain -->
+<line x1="100" y1="490" x2="480" y2="530" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="280" y1="490" x2="530" y2="530" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="460" y1="490" x2="580" y2="530" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="640" y1="490" x2="640" y2="530" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="1000" y1="490" x2="690" y2="530" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+<line x1="1180" y1="490" x2="740" y2="530" stroke="#c7c4b8" stroke-width="1" marker-end="url(#arrowB)"/>
+
+<rect x="790" y="50" width="280" height="50" rx="8" fill="#F1EFE8" stroke="#b4b2a9" stroke-width="0.5"/>
+<text class="th" x="930" y="79" text-anchor="middle">Neural network policy</text>
+
+<rect x="240" y="150" width="300" height="60" rx="8" fill="#B5D4F4" stroke="#378ADD" stroke-width="0.5"/>
+<text class="th" x="390" y="176" text-anchor="middle" fill="#042C53">Behavior cloning</text>
+<text class="ts" x="390" y="196" text-anchor="middle" fill="#185FA5">clones a demonstrator</text>
+
+<rect x="960" y="150" width="300" height="60" rx="8" fill="#C0DD97" stroke="#639922" stroke-width="0.5"/>
+<text class="th" x="1110" y="176" text-anchor="middle" fill="#173404">Reinforcement learning</text>
+<text class="ts" x="1110" y="196" text-anchor="middle" fill="#3B6D11">reward/fitness-driven</text>
+
+<rect x="1500" y="150" width="300" height="60" rx="8" fill="#CECBF6" stroke="#7F77DD" stroke-width="0.5"/>
+<text class="th" x="1650" y="176" text-anchor="middle" fill="#26215C">Self-supervised world model</text>
+<text class="ts" x="1650" y="196" text-anchor="middle" fill="#3C3489">learns dynamics, no reward/demo</text>
+
+<rect x="40" y="270" width="160" height="70" rx="8" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+<text class="th" x="120" y="292" text-anchor="middle" fill="#042C53">Direct action</text>
+<text class="th" x="120" y="308" text-anchor="middle" fill="#042C53">imitation</text>
+
+<rect x="220" y="270" width="160" height="70" rx="8" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+<text class="th" x="300" y="288" text-anchor="middle" fill="#042C53">Visual servoing</text>
+<text class="ts" x="300" y="304" text-anchor="middle" fill="#185FA5">perception + control law</text>
+<text class="badge" x="300" y="320" text-anchor="middle" fill="#0F6E56">✓ standalone (#2–4)</text>
+
+<rect x="400" y="270" width="160" height="70" rx="8" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+<text class="th" x="480" y="288" text-anchor="middle" fill="#042C53">Learning from</text>
+<text class="th" x="480" y="304" text-anchor="middle" fill="#042C53">observation</text>
+<text class="badge" x="480" y="320" text-anchor="middle" fill="#0F6E56">✓ video-only</text>
+
+<rect x="580" y="270" width="160" height="70" rx="8" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+<text class="th" x="660" y="288" text-anchor="middle" fill="#042C53">VLA / foundation</text>
+<text class="th" x="660" y="304" text-anchor="middle" fill="#042C53">policies</text>
+<text class="new-tag" x="660" y="320" text-anchor="middle" fill="#993c1d">★ blends w/ world model</text>
+
+<rect x="760" y="270" width="160" height="70" rx="8" fill="#EAF3DE" stroke="#639922" stroke-width="0.5"/>
+<text class="th" x="840" y="292" text-anchor="middle" fill="#173404">Standard RL</text>
+<text class="ts" x="840" y="308" text-anchor="middle" fill="#3B6D11">hand-specified reward</text>
+<text class="badge" x="840" y="322" text-anchor="middle" fill="#0F6E56">✓ standalone</text>
+
+<rect x="940" y="270" width="160" height="70" rx="8" fill="#EAF3DE" stroke="#639922" stroke-width="0.5"/>
+<text class="th" x="1020" y="292" text-anchor="middle" fill="#173404">Offline RL</text>
+<text class="ts" x="1020" y="308" text-anchor="middle" fill="#3B6D11">fixed dataset, reward-based</text>
+<text class="new-tag" x="1020" y="322" text-anchor="middle" fill="#993c1d">★ can beat the demonstrator</text>
+
+<rect x="1120" y="270" width="160" height="70" rx="8" fill="#EAF3DE" stroke="#639922" stroke-width="0.5"/>
+<text class="th" x="1200" y="288" text-anchor="middle" fill="#173404">Inverse RL /</text>
+<text class="th" x="1200" y="304" text-anchor="middle" fill="#173404">reward learning</text>
+<text class="badge" x="1200" y="320" text-anchor="middle" fill="#0F6E56">✓ standalone</text>
+
+<rect x="1300" y="270" width="160" height="70" rx="8" fill="#EAF3DE" stroke="#639922" stroke-width="0.5"/>
+<text class="th" x="1380" y="288" text-anchor="middle" fill="#173404">Evolutionary /</text>
+<text class="th" x="1380" y="304" text-anchor="middle" fill="#173404">gradient-free search</text>
+<text class="badge" x="1380" y="320" text-anchor="middle" fill="#0F6E56">✓ standalone</text>
+
+<rect x="1480" y="270" width="160" height="70" rx="8" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.5"/>
+<text class="th" x="1560" y="288" text-anchor="middle" fill="#26215C">Model-predictive</text>
+<text class="th" x="1560" y="304" text-anchor="middle" fill="#26215C">control (planning)</text>
+<text class="badge" x="1560" y="320" text-anchor="middle" fill="#0F6E56">✓ standalone</text>
+
+<rect x="1660" y="270" width="160" height="70" rx="8" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.5"/>
+<text class="th" x="1740" y="288" text-anchor="middle" fill="#26215C">Active inference</text>
+<text class="ts" x="1740" y="304" text-anchor="middle" fill="#3C3489">goal = prior, not reward</text>
+<text class="new-tag" x="1740" y="320" text-anchor="middle" fill="#993c1d">★ unifies perception + action</text>
+
+<!-- TIER3: 7 explicit variants -->
+<rect x="20" y="420" width="160" height="70" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="0.5"/>
+<text class="th" x="100" y="440" text-anchor="middle" fill="#412402">Frame stacking /</text>
+<text class="th" x="100" y="456" text-anchor="middle" fill="#412402">optical flow</text>
+<text class="ts" x="100" y="472" text-anchor="middle" fill="#854F0B">axis: input</text>
+
+<rect x="200" y="420" width="160" height="70" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="0.5"/>
+<text class="th" x="280" y="448" text-anchor="middle" fill="#412402">Action chunking</text>
+<text class="ts" x="280" y="464" text-anchor="middle" fill="#854F0B">axis: output</text>
+
+<rect x="380" y="420" width="160" height="70" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="0.5"/>
+<text class="th" x="460" y="440" text-anchor="middle" fill="#412402">Self-supervised</text>
+<text class="th" x="460" y="456" text-anchor="middle" fill="#412402">backbone + thin head</text>
+<text class="ts" x="460" y="472" text-anchor="middle" fill="#854F0B">axis: representation</text>
+
+<rect x="560" y="420" width="160" height="70" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="0.5"/>
+<text class="th" x="640" y="440" text-anchor="middle" fill="#412402">Multi-task /</text>
+<text class="th" x="640" y="456" text-anchor="middle" fill="#412402">auxiliary loss</text>
+<text class="ts" x="640" y="472" text-anchor="middle" fill="#854F0B">axis: supervision</text>
+
+<rect x="740" y="420" width="160" height="70" rx="8" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+<text class="th" x="820" y="448" text-anchor="middle" fill="#042C53">plain (no tool)</text>
+<text class="ts" x="820" y="464" text-anchor="middle" fill="#185FA5">unmodified baseline</text>
+
+<rect x="920" y="420" width="160" height="70" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="0.5"/>
+<text class="th" x="1000" y="448" text-anchor="middle" fill="#412402">+ DAgger</text>
+<text class="ts" x="1000" y="464" text-anchor="middle" fill="#854F0B">axis: training loop</text>
+
+<rect x="1100" y="420" width="160" height="70" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="0.5"/>
+<text class="th" x="1180" y="440" text-anchor="middle" fill="#412402">+ model-based</text>
+<text class="th" x="1180" y="456" text-anchor="middle" fill="#412402">control</text>
+<text class="ts" x="1180" y="472" text-anchor="middle" fill="#854F0B">axis: runtime</text>
+
+<!-- TIER4: single convergence box -->
+<rect x="460" y="530" width="300" height="70" rx="8" fill="#D3D1C7" stroke="#888780" stroke-width="0.5"/>
+<text class="th" x="610" y="550" text-anchor="middle" fill="#2C2C2A">Direct action imitation +</text>
+<text class="th" x="610" y="566" text-anchor="middle" fill="#2C2C2A">all 6 enhancements</text>
+<text class="ts" x="610" y="582" text-anchor="middle" fill="#5f5e5a">fully-augmented policy</text>
+
+<text class="ts" x="820" y="630" text-anchor="middle" fill="#888">no arrow down from "plain" — everything else converges</text>
+</svg>
+</div>
+
+<h2>Why the top-level three-way split still holds</h2>
+<p>The families are separated by what supplies the training signal: behavior cloning needs a demonstrator, reinforcement learning needs a reward/fitness signal, self-supervised world modeling needs neither. The tools sitting under direct action imitation are a different kind of thing entirely — they're not alternative training paradigms, they're modifications along independent axes of one paradigm, which is exactly why nearly all of them compose rather than compete.</p>
+
+</div>
+</body>
+</html>
