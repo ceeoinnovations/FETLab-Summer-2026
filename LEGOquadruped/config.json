@@ -1,0 +1,21 @@
+{
+    "url":"https://cad.onshape.com/documents/bedc912299496833a616c9c7/w/1b4a383ad4d6ae9d7642190e/e/2f6a685107d0e7d5872fe03c",
+    "output": "lego_quadruped",
+    "outputFormat": "mujoco",
+    "addNoise": false,
+    "meshes": true,
+    "joint_properties": {
+                            "dof_frontLeftThigh": {"actuated": false},
+                            "dof_frontLeftKnee": {"actuated": false},
+                            "dof_frontLeftCalf": {"actuated": false},
+                            "dof_backLeftThigh": {"actuated": false},
+                            "dof_backLeftKnee": {"actuated": false},
+                            "dof_backLeftCalf": {"actuated": false},
+                            "dof_frontRightThigh": {"actuated": false},
+                            "dof_frontRightKnee": {"actuated": false},
+                            "dof_frontRightCalf": {"actuated": false},
+                            "dof_backRightThigh": {"actuated": false},
+                            "dof_backRightKnee": {"actuated": false},
+                            "dof_backRightCalf": {"actuated": false}
+                        }   
+}

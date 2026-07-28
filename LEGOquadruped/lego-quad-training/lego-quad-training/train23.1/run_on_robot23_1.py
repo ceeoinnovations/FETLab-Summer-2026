@@ -1,0 +1,434 @@
+"""Run the trained train23.1 policy on the REAL LEGO quadruped.
+
+    python run_on_robot23_1.py   (hardware env; pip install legoeducation numpy)
+
+Copy these three files together onto the hardware machine:
+    run_on_robot23_1.py, numpy_policy.py, policy_weights23_1.npz
+
+train23.1 = the surgical anti-front-sync retrain of train17.1 (best hardware
+walker) + recovery training: FORWARD-GATED diagonal coordination meant to hold the
+front feet ANTIPHASE (fixing the intermittent front-sync stall), a balance that
+keeps front-bias but forbids idle back legs (all four move), plus broken-phase RSI
+seeds + mid-episode phase kicks so it re-separates a synced pair. In SIM it is the
+FASTEST + most balanced walker of the project (~0.031 m/s, back ~0.63x front, ~3-12
+deg veer) - but the sim front-foot antiphase (corr -0.5) was NO cleaner than
+17.1's, so whether the hardware front-sync is actually reduced is what this run is
+meant to test. Same crank convention and 30-dim heading-in-obs as run_on_robot17_1
+(LEG_SIGNS=[+1,+1,+1,+1], LEG_MAP); carries ALL the same deploy-side fixes (pre-
+roll, phase-lock watchdog, crank-slaved clock, optional PATH_FOLLOW line-follower).
+
+Notes:
+
+1. OBS IS 30-dim: v13's 28 + sin/cos of the heading error (yaw - yaw0). The
+   phase clock (CLOCK_T=0.72 s) advances on wall-clock time from start.
+
+2. HEADING ERROR = the front IMU's fused yaw drift from the start heading. Point
+   the robot the way you want to go at startup (that sets yaw0), and the policy
+   holds it. Yaw is an orientation, so where the IMU sits on the body doesn't
+   matter - only the axis (vertical) and SIGN do.
+
+3. HEADING_ERR_SIGN is the one thing to verify: sim yaw increases CCW; if the
+   IMU increases the other way, the policy steers the WRONG way and drift grows.
+   VERIFY SLOWLY FIRST - if it curves worse when running, set HEADING_ERR_SIGN=-1.
+
+4. DIRECTION: walks your original forward. If backward, flip all LEG_SIGNS.
+   Sanity-check LEG_MAP/LEG_SIGNS with scripted_trot_test.py (one leg fights ->
+   that leg's back-unit L/R swap).
+
+5. FOUR-LEG FRONT-BIAS: train23.1 drives all four legs, front-biased but back
+   never idle (sim back ~0.63x front). A back leg that barely moves here is a
+   dropped motor connection, not the policy. If the front pair still SYNCS and it
+   stalls (the issue this run targets), the WATCHDOG below may or may not catch it
+   (it detects crank co-rotation, not a foot-phase sync) - report what you see.
+
+IMU + motor data via notification callbacks (real API). Units from device dumps:
+  pitch/roll = decidegrees (x0.1 -> deg); gyro = decidegrees/s (x0.1 -> deg/s);
+  accel = milli-g -> normalized gravity unit vector; MotorNotification
+  motorBitMask: 1 = LEFT, 2 = RIGHT. Ctrl+C stops the motors and exits.
+"""
+
+import math
+import threading
+import time
+
+import numpy as np
+
+import legoeducation as le
+from numpy_policy import NumpyPolicy
+
+# ---------------- fill these in ----------------
+FRONT_CARD = dict(card_color=le.LEGO_COLOR_RED, card_serial="1779")
+BACK_CARD = dict(card_color=le.LEGO_COLOR_PURPLE, card_serial="6040")
+
+COMMAND = 0.03          # commanded forward speed (m/s). train17.1 range 0.01-0.04.
+CLOCK_T = 0.72          # gait-clock period (s) - MUST match training
+MAX_DEG_S = 700.0
+MAX_SPEED_PCT = 40      # start LOW (~15) the first time, then raise once verified
+# per-crank sign, policy/obs order (FL, FR, BL, BR) = mesh GEAR_JOINTS order.
+# The policy's DOMINANT crank directions are [+,-,+,-] (measured: FL+ FR- BL+
+# BR-), a diagonal trot. LEG_SIGNS maps the policy action -> motor direction
+# (CW if action*sign >= 0). With +1s the trot passes straight through as
+# [+,-,+,-]. NOTE: the old [-1,+1,-1,+1] * [+,-,+,-] = [-,-,-,-] (all cranks
+# one way = the flail) - that was the bug. This walks train12's direction
+# (opposite your scripted_trot original). Flip ALL FOUR to walk the other way;
+# if ONE leg fights, its LEG_MAP entry (back-unit L/R) is likely swapped.
+LEG_SIGNS = np.array([+1.0, +1.0, +1.0, +1.0])
+IMU_UNIT = "front"
+
+# Physical unit+port per crank, in policy/obs order (FL, FR, BL, BR). The mesh's
+# backLeftGear maps to the physical BACK-RIGHT motor and backRightGear to
+# BACK-LEFT (the swapped back-unit labels) - VERIFY on hardware.
+LEG_MAP = {
+  "FL": ("front", "left"),
+  "FR": ("front", "right"),
+  "BL": ("back", "right"),
+  "BR": ("back", "left"),
+}
+LEG_ORDER = ("FL", "FR", "BL", "BR")   # matches train12's GEAR_JOINTS order
+
+CONTROL_HZ = 5.0
+MAX_CRANK_SPEED = 12.0
+TILT_STOP_DEG = 75.0
+TILT_STOP_HOLD = 5
+USE_LIVE_IMU = True    # train12 trained on live IMU - keep True
+GYRO_SIGNS = (1.0, 1.0, 1.0)
+
+# --- v15: the POLICY steers itself from the heading error in its obs ---
+# We feed sin/cos(HEADING_ERR_SIGN * (imu_yaw - yaw0)) into the last 2 obs dims.
+# HEADING_ERR_SIGN: sim yaw increases CCW; if the IMU increases the OTHER way the
+# policy will steer the WRONG way (drift grows) - flip this to -1 then. Verify on
+# a slow first run: if it curves worse when running, flip the sign.
+HEADING_ERR_SIGN = +1.0
+HEADING_UNIT = "front"   # IMU unit whose fused yaw is the heading (center-ish)
+
+# External heading-hold trim is now OFF - the policy handles steering. Left here
+# as an optional extra correction if the policy alone still curves.
+HEADING_HOLD = False
+HEADING_GAIN = 0.02
+HEADING_SIGN = +1.0
+HEADING_TRIM_MAX = 0.3
+DEBUG = True
+
+# --- anti-stall: pre-roll into a trot + front-pair phase-lock watchdog ---
+# The trained gait needs the two FRONT cranks ANTIPHASE - they counter-rotate
+# (the policy's dominant action is [-,+,-,+] = RSI_SIGNS). On hardware they can
+# lock into CO-rotation (both turning the same way, same phase); then both front
+# feet do the same thing at once, there is no push/recover alternation, and the
+# robot bobs without translating. RSI_SIGNS is the trot drive the policy trained
+# on; we reuse it to (a) PRE-ROLL the cranks into a moving trot at startup instead
+# of launching from all-feet-down (all in phase = the stall configuration), and
+# (b) NUDGE the front pair back apart if it co-rotates mid-walk.
+RSI_SIGNS = np.array([-1.0, 1.0, -1.0, 1.0])
+PREROLL_ENABLE = True
+PREROLL_CYCLES = 2.0     # crank revolutions to spin up before handing to policy
+WATCHDOG_ENABLE = True
+CO_ROT_DELTA = 0.3       # rad/step: min front-crank motion to count (normal ~1.7)
+CO_ROT_STEPS = 5         # sustained co-rotating steps (~1 s at 5 Hz) => phase-lock
+NUDGE_STEPS = 3          # open-loop trot-drive steps to break the lock
+
+# --- clock-from-cranks: slave the gait clock to ACTUAL crank motion ---
+# The gait clock in the obs normally free-runs on wall-clock time (phase_t += dt).
+# In sim the velocity-controlled cranks track that exactly; on hardware they lag
+# (BLE latency, friction, load), so the fixed clock drifts against the slower
+# real cadence and the two BEAT: the robot walks when clock ~= crank phase and
+# stalls in place when the clock runs ~half a cycle ahead. Advancing the clock by
+# the MEASURED crank progress instead keeps it locked to the cranks -> no beat.
+# (Diagnosed on hardware: it stalls with wd=0, i.e. NOT a phase-lock.)
+CLOCK_FROM_CRANKS = True
+# The policy trained on a clock that advanced ~dt EVERY step and never froze, so
+# clamp the crank-slaved advance to [MIN,MAX]*dt: it slows to track lagging cranks
+# (kills the beat) but never FREEZES or LURCHES - a stopped/jumping clock is
+# off-distribution and makes the policy command erratic full-speed bursts.
+CLOCK_ADV_MIN = 0.4
+CLOCK_ADV_MAX = 1.0
+
+# --- path-follower: return to the start LINE, not just hold heading ---
+# train17.1 holds HEADING (drives yaw->yaw0) but is path-INDEPENDENT: after a veer
+# it ends up parallel to the start heading yet offset sideways, and never comes
+# back. This outer loop makes it follow the LINE by bending the heading target
+# toward the line using a DEAD-RECKONED cross-track offset (the same integral the
+# sim line-following runs used: xt += fwd-progress * sin(heading-err)). The policy
+# nulls the heading error it sees, so feeding a heading that points back at the
+# line makes the heading-hold policy RETURN to it. Pure-pursuit on top of
+# heading-hold; NO retrain, works with the 30-dim policy unchanged.
+# Bring-up: run with PATH_FOLLOW=False first (plain heading-hold, as before),
+# confirm it walks, then set True and raise PATH_K. If it steers AWAY from the
+# line (drifts worse), flip PATH_SIGN to -1.
+PATH_FOLLOW = False      # False = plain heading-hold (unchanged); True = line-follow
+PATH_K = 3.0             # rad of heading bend per metre of cross-track offset
+PATH_MAX = 0.6           # clamp the bend to +/-0.6 rad (~34 deg)
+PATH_SIGN = +1.0         # flip to -1 if it steers away from the line
+XT_FWD_PER_RAD = 0.0023  # m of forward travel per rad of crank motion (matches sim)
+# ------------------------------------------------
+
+MASK = {"left": 1, "right": 2}
+policy = NumpyPolicy("policy_weights23_1.npz")
+
+
+class UnitState:
+  """Caches the latest notification values for one Double Motor (thread-safe)."""
+  def __init__(self):
+    self.lock = threading.Lock()
+    self.abspos = {1: 0.0, 2: 0.0}
+    self.speed = {1: 0.0, 2: 0.0}
+    self.pitch = 0.0
+    self.roll = 0.0
+    self.yaw = 0.0
+    self.gyro = (0.0, 0.0, 0.0)
+    self.accel = (0.0, 0.0, -1000.0)
+
+  def callback(self, data):
+    for item in le.device_notification_parser(data):
+      name = type(item).__name__
+      with self.lock:
+        if name == "MotorNotification":
+          m = item.motorBitMask
+          if m in (1, 2):
+            self.abspos[m] = item.absolutePosition
+            self.speed[m] = item.speed
+        elif name == "ImuDeviceNotification":
+          self.pitch = item.pitch
+          self.roll = item.roll
+          self.yaw = item.yaw
+          self.gyro = (item.gyroscopeX, item.gyroscopeY, item.gyroscopeZ)
+          self.accel = (item.accelerometerX, item.accelerometerY,
+                        item.accelerometerZ)
+
+
+def connect(card, name, state):
+  dm = le.DoubleMotor()
+  dm.connect(**card)
+  if not dm.connected:
+    raise SystemExit(f"could not connect to {name} double motor")
+  dm.set_notification_callback(state.callback)
+  dm.device_notification_request(50)
+  print(f"{name} connected")
+  return dm
+
+
+def _wrap_pi(a):
+  return (a + math.pi) % (2.0 * math.pi) - math.pi
+
+
+def drive_motors(legs, action, trim):
+  """Send one crank-velocity action vector to the motors. Shared by the policy
+  loop, the startup pre-roll, and the anti-stall nudge so they map actions to
+  motor commands identically."""
+  for a, (unit, _, mask), sign, tr in zip(action, legs, LEG_SIGNS, trim):
+    motor = le.MOTOR_LEFT if mask == 1 else le.MOTOR_RIGHT
+    rad_s = float(a) * MAX_CRANK_SPEED * sign
+    pct = min(MAX_SPEED_PCT, abs(rad_s) / math.radians(MAX_DEG_S) * 100.0) * tr
+    pct = min(MAX_SPEED_PCT, max(0.0, pct))
+    if pct < 3:
+      unit.motor_stop(motor=motor)
+    else:
+      direction = (le.MOTOR_MOVE_DIRECTION_CLOCKWISE if rad_s >= 0
+                   else le.MOTOR_MOVE_DIRECTION_COUNTERCLOCKWISE)
+      unit.motor_run(direction=direction, motor=motor, speed=int(pct))
+
+
+def main():
+  fstate, bstate = UnitState(), UnitState()
+  front = connect(FRONT_CARD, "front", fstate)
+  back = connect(BACK_CARD, "back", bstate)
+  state = {"front": fstate, "back": bstate}
+  front.imu_set_yaw_face(yaw_face=le.DEVICE_FACE_BACK)
+  imu_state = state[IMU_UNIT]
+
+  units = {"front": front, "back": back}
+  legs = [(units[LEG_MAP[k][0]], state[LEG_MAP[k][0]], MASK[LEG_MAP[k][1]])
+          for k in LEG_ORDER]
+
+  time.sleep(0.5)
+
+  input("\nrotate all four cranks so each FOOT is at its LOWEST point,\n"
+        "then press Enter to anchor phase zero... ")
+  ang0 = np.array([math.radians(st.abspos[m]) for _, st, m in legs])
+  print("phase anchored")
+
+  time.sleep(0.3)
+  with imu_state.lock:
+    a0 = np.array(imu_state.accel, float)
+    pitch0 = imu_state.pitch * 0.1
+    roll0 = imu_state.roll * 0.1
+  g_ref = a0 / (np.linalg.norm(a0) + 1e-9)
+
+  target = np.array([0.0, 0.0, -1.0])
+  v = np.cross(g_ref, target)
+  c = float(g_ref @ target)
+  if np.linalg.norm(v) < 1e-8:
+    R0 = np.eye(3) if c > 0 else np.diag([1.0, -1.0, -1.0])
+  else:
+    vx = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+    R0 = np.eye(3) + vx + vx @ vx * (1.0 / (1.0 + c))
+  print(f"reference gravity {np.round(g_ref, 2)} -> aligned "
+        f"{np.round(R0 @ g_ref, 2)} (want [0 0 -1]); "
+        f"pitch0 {pitch0:+.0f} roll0 {roll0:+.0f} deg")
+
+  heading_state = state[HEADING_UNIT]
+  with heading_state.lock:
+    yaw0 = heading_state.yaw * 0.1
+  print(f"reference heading yaw0 = {yaw0:+.0f} deg (point the robot the way "
+        f"you want it to go)")
+
+  def wrap180(a):
+    return (a + 180.0) % 360.0 - 180.0
+
+  prev_action = np.zeros(4)
+  prev_ang = None
+  tilt_count = 0
+  dt = 1.0 / CONTROL_HZ
+  phase_t = 0.0          # gait clock; advances dt each control step (as trained)
+  omega_frac = (2.0 * math.pi / CLOCK_T) / MAX_CRANK_SPEED   # action -> rad_s = omega
+  omega = 2.0 * math.pi / CLOCK_T          # nominal crank speed (rad/s)
+
+  # pre-roll the cranks into a moving trot (open-loop RSI pattern) before handing
+  # to the policy, so we launch from the mid-trot state the policy trained on
+  # instead of all-cranks-in-phase (every foot down) - the degenerate front-pair-
+  # synced configuration the robot stalls in.
+  if PREROLL_ENABLE:
+    n_pre = int(round(PREROLL_CYCLES * CLOCK_T / dt))
+    print(f"pre-rolling {PREROLL_CYCLES:g} crank cycles into a trot...")
+    for _ in range(n_pre):
+      drive_motors(legs, RSI_SIGNS * omega_frac, np.ones(4))
+      phase_t += dt
+      time.sleep(dt)
+
+  co_rot, nudge_left = 0, 0
+  path_cross = 0.0        # dead-reckoned cross-track offset from the start line (m)
+  print(f"running (USE_LIVE_IMU={USE_LIVE_IMU}, clock T={CLOCK_T}s, "
+        f"PATH_FOLLOW={PATH_FOLLOW}) - Ctrl+C to stop")
+  try:
+    while True:
+      t0 = time.time()
+
+      angs, spds = [], []
+      for _, st, m in legs:
+        with st.lock:
+          angs.append(st.abspos[m]); spds.append(st.speed[m])
+      with imu_state.lock:
+        gyro_raw = np.array(imu_state.gyro, float) * 0.1
+        accel = np.array(imu_state.accel, float)
+
+      g_now = accel / (np.linalg.norm(accel) + 1e-9)
+      tilt_from_stand = math.degrees(
+        math.acos(max(-1.0, min(1.0, float(g_now @ g_ref)))))
+      if tilt_from_stand > TILT_STOP_DEG:
+        tilt_count += 1
+        if tilt_count >= TILT_STOP_HOLD:
+          print(f"\ntilt limit ({tilt_from_stand:.0f} deg, sustained) - stopping")
+          break
+      else:
+        tilt_count = 0
+
+      if USE_LIVE_IMU:
+        g_b = R0 @ (accel / (np.linalg.norm(accel) + 1e-9))
+        gyro = R0 @ (np.radians(gyro_raw) * np.array(GYRO_SIGNS))
+      else:
+        g_b = np.array([0.0, 0.0, -1.0])
+        gyro = np.zeros(3)
+
+      ang = (np.radians(angs) - ang0) * LEG_SIGNS
+      vel = np.radians(np.array(spds) / 100.0 * MAX_DEG_S) * LEG_SIGNS
+      # per-crank angle change since last step (drives the watchdog + crank clock)
+      d_crank = None if prev_ang is None else _wrap_pi(ang - prev_ang)
+
+      # phase clock (concept 1): sin/cos of the gait phase
+      frac = (phase_t / CLOCK_T) % 1.0
+      p = 2.0 * math.pi * frac
+
+      # v15 heading error: sin/cos of the IMU yaw drift from the start heading.
+      # The policy uses this to steer. Sign must match sim (flip HEADING_ERR_SIGN
+      # if it curves worse when running).
+      with heading_state.lock:
+        yaw_err_deg = wrap180(heading_state.yaw * 0.1 - yaw0)
+      he = math.radians(HEADING_ERR_SIGN * yaw_err_deg)
+
+      # path-follower: integrate the dead-reckoned cross-track offset and bend the
+      # heading target toward the line. No-op when PATH_FOLLOW is False (he_eff=he).
+      if PATH_FOLLOW:
+        if d_crank is not None:
+          path_cross += XT_FWD_PER_RAD * float(np.mean(np.abs(d_crank))) * math.sin(he)
+        corr = max(-PATH_MAX, min(PATH_MAX, PATH_K * path_cross))
+        he_eff = he + PATH_SIGN * corr
+      else:
+        he_eff = he
+
+      obs = np.concatenate([
+        np.zeros(3),          # base lin vel: trained blind
+        gyro, g_b,
+        np.sin(ang), np.cos(ang),
+        vel / 10.0,
+        prev_action, [COMMAND],
+        [math.sin(p), math.cos(p)],   # phase clock
+        [math.sin(he_eff), math.cos(he_eff)],  # heading err (v15), path-bent (v17.1)
+      ])
+
+      if HEADING_HOLD:
+        with heading_state.lock:
+          yaw_err = wrap180(heading_state.yaw * 0.1 - yaw0)
+        u = max(-HEADING_TRIM_MAX,
+                min(HEADING_TRIM_MAX, HEADING_SIGN * HEADING_GAIN * yaw_err))
+      else:
+        yaw_err, u = 0.0, 0.0
+      # LEG_ORDER (FL, FR, BL, BR): indices 0,2 are LEFT-side, 1,3 RIGHT-side
+      trim = np.array([1.0 - u, 1.0 + u, 1.0 - u, 1.0 + u])
+
+      action = policy(obs)
+
+      # anti-stall watchdog: the two FRONT cranks (idx 0,1) should COUNTER-rotate,
+      # and so should the two BACK cranks (idx 2,3) - GAIT_PHI makes both pairs
+      # antiphase. If EITHER pair's crank angles advance the SAME way (co-rotate)
+      # at speed for a sustained spell, that pair has phase-locked and the robot
+      # bobs in place. Inject a short open-loop trot drive (RSI pattern) to re-seed
+      # all four legs, then hand control back to the policy. Uses angle deltas
+      # (robust whether or not the motor speed notification is signed).
+      if WATCHDOG_ENABLE and d_crank is not None:
+        if nudge_left > 0:
+          action = RSI_SIGNS * omega_frac
+          nudge_left -= 1
+        else:
+          d = d_crank
+          front_sync = d[0] * d[1] > 0.0 and min(abs(d[0]), abs(d[1])) > CO_ROT_DELTA
+          back_sync = d[2] * d[3] > 0.0 and min(abs(d[2]), abs(d[3])) > CO_ROT_DELTA
+          co_rot = co_rot + 1 if (front_sync or back_sync) else 0
+          if co_rot >= CO_ROT_STEPS:
+            nudge_left, co_rot = NUDGE_STEPS, 0
+      prev_ang = ang.copy()
+
+      drive_motors(legs, action, trim)
+      prev_action = action.copy()
+
+      if DEBUG:
+        # yaw_err_deg is the live IMU drift the POLICY sees (yaw - yaw0); yaw_err
+        # is the heading-hold trim, which is 0 when HEADING_HOLD is off. wd = the
+        # watchdog state: the co-rotation counter, or NUDGE while breaking a lock.
+        wd = "NUDGE" if nudge_left > 0 else str(co_rot)
+        print(f"\rclk {frac:.2f} | tilt {tilt_from_stand:3.0f} | yaw_err {yaw_err_deg:+6.1f}"
+              f" | xt {path_cross*100:+5.0f}cm | wd {wd:>5} | vel " +
+              " ".join(f"{x:+4.1f}" for x in vel) + "   ", end="")
+
+      # advance the gait clock: by measured crank progress (locked to the real
+      # cadence, no beat) or, if disabled, by wall-clock dt as trained. Clamp to
+      # [MIN,MAX]*dt so the clock stays monotonic and smooth - a frozen or
+      # lurching clock is off-distribution and triggers erratic full-speed bursts.
+      if CLOCK_FROM_CRANKS and d_crank is not None:
+        adv = float(np.mean(np.abs(d_crank))) / omega
+        phase_t += min(CLOCK_ADV_MAX * dt, max(CLOCK_ADV_MIN * dt, adv))
+      else:
+        phase_t += dt
+      lag = time.time() - t0
+      if lag < dt:
+        time.sleep(dt - lag)
+  except KeyboardInterrupt:
+    pass
+  finally:
+    for unit, _, mask in legs:
+      unit.motor_stop(motor=(le.MOTOR_LEFT if mask == 1 else le.MOTOR_RIGHT))
+    front.disconnect()
+    back.disconnect()
+    print("\nstopped")
+
+
+if __name__ == "__main__":
+  main()

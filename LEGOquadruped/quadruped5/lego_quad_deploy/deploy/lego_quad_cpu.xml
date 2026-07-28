@@ -1,0 +1,44 @@
+<mujoco model="lego_quad_cpu">
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.004" integrator="implicitfast"/>
+  <default>
+    <default class="crank">
+      <joint type="hinge" axis="0 1 0" damping="0.02" armature="0.002"/>
+      <velocity kv="0.5" forcerange="-0.4 0.4" ctrlrange="-12 12"/>
+    </default>
+  </default>
+  <worldbody>
+    <light pos="0 0 1.2" dir="0 0 -1" diffuse="0.8 0.8 0.8"/>
+    <geom name="floor" type="plane" size="0 0 0.1" friction="1.2 0.02 0.001" rgba="0.35 0.45 0.55 1"/>
+    <body name="trunk" pos="0 0 0.09" childclass="crank">
+      <freejoint name="root"/>
+      <geom name="trunk" type="box" size="0.08 0.05 0.025" mass="0.22" rgba="0.2 0.45 0.9 1"/>
+      <body name="FL" pos="0.07 0.05 0">
+        <joint name="FL_crank"/>
+        <geom name="FL_link" type="capsule" size="0.006" fromto="0 0 0 0 0 -0.07" mass="0.02" rgba="0.3 0.3 0.35 1"/>
+        <geom name="FL_foot" type="sphere" size="0.014" pos="0 0 -0.07" mass="0.01" friction="1.2 0.02 0.001" rgba="0.1 0.1 0.1 1"/>
+      </body>
+      <body name="FR" pos="0.07 -0.05 0">
+        <joint name="FR_crank"/>
+        <geom name="FR_link" type="capsule" size="0.006" fromto="0 0 0 0 0 -0.07" mass="0.02" rgba="0.3 0.3 0.35 1"/>
+        <geom name="FR_foot" type="sphere" size="0.014" pos="0 0 -0.07" mass="0.01" friction="1.2 0.02 0.001" rgba="0.1 0.1 0.1 1"/>
+      </body>
+      <body name="HL" pos="-0.07 0.05 0">
+        <joint name="HL_crank"/>
+        <geom name="HL_link" type="capsule" size="0.006" fromto="0 0 0 0 0 -0.07" mass="0.02" rgba="0.3 0.3 0.35 1"/>
+        <geom name="HL_foot" type="sphere" size="0.014" pos="0 0 -0.07" mass="0.01" friction="1.2 0.02 0.001" rgba="0.1 0.1 0.1 1"/>
+      </body>
+      <body name="HR" pos="-0.07 -0.05 0">
+        <joint name="HR_crank"/>
+        <geom name="HR_link" type="capsule" size="0.006" fromto="0 0 0 0 0 -0.07" mass="0.02" rgba="0.3 0.3 0.35 1"/>
+        <geom name="HR_foot" type="sphere" size="0.014" pos="0 0 -0.07" mass="0.01" friction="1.2 0.02 0.001" rgba="0.1 0.1 0.1 1"/>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <velocity class="crank" name="FL_crank" joint="FL_crank"/>
+    <velocity class="crank" name="FR_crank" joint="FR_crank"/>
+    <velocity class="crank" name="HL_crank" joint="HL_crank"/>
+    <velocity class="crank" name="HR_crank" joint="HR_crank"/>
+  </actuator>
+</mujoco>

@@ -1,0 +1,220 @@
+<?xml version="1.0" ?>
+<!-- Generated using onshape-to-robot -->
+<!-- Onshape https://cad.onshape.com/documents/bedc912299496833a616c9c7/w/1b4a383ad4d6ae9d7642190e/e/2f6a685107d0e7d5872fe03c -->
+<mujoco model="C:\Users\gooey\OneDrive\Documents\GitHub\LEGO-quadruped\lego_quadruped">
+  <compiler angle="radian" meshdir="assets" autolimits="true"/>
+  <option timestep="0.002" iterations="100" solver="Newton"/>
+  <default>
+    <default class="C:\Users\gooey\OneDrive\Documents\GitHub\LEGO-quadruped\lego_quadruped">
+      <joint frictionloss="0.1" armature="0.005"/>
+        <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+      </default>
+      <default class="collision">
+        <geom group="3"/>
+      </default>
+    </default>
+  </default>
+  <worldbody>
+    <!-- Link body -->
+    <body name="body" pos="0 0 0.12" quat="0.9791 -0.1949 0.0586 0.0000" childclass="C:\Users\gooey\OneDrive\Documents\GitHub\LEGO-quadruped\lego_quadruped">
+      <freejoint name="root"/>
+      <inertial pos="0.0106918 -0.0314052 0.0349948" mass="0.22" fullinertia="0.000249244 0.00037393 0.00038866 -7.80181e-05 -1.588e-05 1.94939e-06"/>
+      <!-- Part body -->
+      <geom type="mesh" class="visual" pos="0.0720267 -0.0166011 0.0408558" quat="0.223594 0.00128669 0.163546 -0.960863" mesh="body" material="body_material"/>
+      <geom type="mesh" class="collision" pos="0.0720267 -0.0166011 0.0408558" quat="0.223594 0.00128669 0.163546 -0.960863" mesh="body" material="body_material"/>
+      <!-- Link gear -->
+      <body name="gear" pos="-0.0507704 -0.00945235 0.0203524" quat="0.123424 0.51112 -0.628978 0.572634">
+        <!-- Joint from body to gear TODO: Point this joint to Part gear_6 -->
+        <joint axis="0 0 1" name="frontRightGear" type="hinge"/>
+        <inertial pos="3.57143e-05 0 -0.005" mass="0.002" fullinertia="1.29667e-07 1.29093e-07 2.25426e-07 -0 -0 -0"/>
+        <!-- Part gear -->
+        <geom type="mesh" class="visual" pos="0.0405968 -0.0451753 -0.01" quat="0.5 -0.5 -0.5 -0.5" mesh="gear" material="gear_material"/>
+        <geom type="mesh" class="collision" pos="0.0405968 -0.0451753 -0.01" quat="0.5 -0.5 -0.5 -0.5" mesh="gear" material="gear_material"/>
+      </body>
+      <!-- Link gear_2 -->
+      <body name="gear_2" pos="0.0338304 0.0308986 0.0274595" quat="0.50445 0.435604 0.683452 -0.29778">
+        <!-- Joint from body to gear_2 TODO: Point this joint to Part gear_5 -->
+        <joint axis="0 0 1" name="backRightGear" type="hinge"/>
+        <inertial pos="3.57143e-05 -0 -0.005" mass="0.002" fullinertia="1.29667e-07 1.29093e-07 2.25426e-07 -0 -0 0"/>
+        <!-- Part gear_2 -->
+        <geom type="mesh" class="visual" pos="0.0405968 0.0451753 0" quat="0.5 0.5 0.5 -0.5" mesh="gear" material="gear_material"/>
+        <geom type="mesh" class="collision" pos="0.0405968 0.0451753 0" quat="0.5 0.5 0.5 -0.5" mesh="gear" material="gear_material"/>
+      </body>
+      <!-- Link gear_3 -->
+      <body name="gear_3" pos="-0.0159318 -0.0780202 -0.0050585" quat="0.666003 -0.580358 0.0795487 0.461841">
+        <!-- Joint from body to gear_3 TODO: Point this joint to Part gear_4 -->
+        <joint axis="0 0 1" name="frontLeftGear" type="hinge"/>
+        <inertial pos="3.57143e-05 -0 -0.005" mass="0.002" fullinertia="1.29667e-07 1.29093e-07 2.25426e-07 0 0 0"/>
+        <!-- Part gear_3 -->
+        <geom type="mesh" class="visual" pos="0.0405968 0.0451753 0" quat="0.5 0.5 0.5 -0.5" mesh="gear" material="gear_material"/>
+        <geom type="mesh" class="collision" pos="0.0405968 0.0451753 0" quat="0.5 0.5 0.5 -0.5" mesh="gear" material="gear_material"/>
+      </body>
+      <!-- Link thigh -->
+      <body name="thigh" pos="-0.0109731 -0.0979755 0.0492112" quat="0.5793 -0.558854 0.175571 0.566805">
+        <!-- Joint from body to thigh -->
+        <joint axis="0 0 1" name="frontLeftThigh" type="hinge"/>
+        <inertial pos="0 0.016 -0.004" mass="0.0002" fullinertia="2.5091e-08 2.11e-09 2.5068e-08 0 0 -0"/>
+        <!-- Part thigh -->
+        <geom type="mesh" class="visual" pos="-0.004 -0.00656639 0.0267861" quat="0 1 0 0" mesh="thigh" material="thigh_material"/>
+        <geom type="mesh" class="collision" pos="-0.004 -0.00656639 0.0267861" quat="0 1 0 0" mesh="thigh" material="thigh_material"/>
+        <!-- Link lleg -->
+        <body name="lleg" pos="-0 0.032 -0.008" quat="0.658658 -0 -0 -0.752443">
+          <!-- Joint from thigh to lleg -->
+          <joint axis="0 0 1" name="frontLeftKnee" type="hinge"/>
+          <inertial pos="-0.013013 0.0571696 -0.0100646" mass="0.009" fullinertia="6.52513e-06 2.15708e-06 7.99094e-06 2.66554e-06 -2.2731e-07 5.95187e-07"/>
+          <!-- Part lleg -->
+          <geom type="mesh" class="visual" pos="0.00737192 0.0761897 -0.008" quat="0.5 0.5 0.5 -0.5" mesh="lleg" material="lleg_material"/>
+          <geom type="mesh" class="collision" pos="0.00737192 0.0761897 -0.008" quat="0.5 0.5 0.5 -0.5" mesh="lleg" material="lleg_material"/>
+          <!-- Part llfoot -->
+          <geom type="mesh" class="visual" pos="0.00737192 0.0761897 -0.008" quat="0.5 0.5 0.5 -0.5" mesh="llfoot" material="llfoot_material"/>
+          <geom type="mesh" class="collision" pos="0.00737192 0.0761897 -0.008" quat="0.5 0.5 0.5 -0.5" mesh="llfoot" material="llfoot_material"/>
+          <!-- Part lrfoot -->
+          <geom type="mesh" class="visual" pos="-0.0655589 0.0841897 -0.008" quat="0.5 -0.5 0.5 0.5" mesh="lrfoot" material="lrfoot_material"/>
+          <geom type="mesh" class="collision" pos="-0.0655589 0.0841897 -0.008" quat="0.5 -0.5 0.5 0.5" mesh="lrfoot" material="lrfoot_material"/>
+          <!-- Link gear_4 -->
+          <body name="gear_4" pos="3.65419e-05 0.046 0" quat="0 1 0 0">
+            <!-- Joint from lleg to gear_4 -->
+            <joint axis="0 0 1" name="frontLeftCalf" type="hinge"/>
+            <inertial pos="0.00162501 -0.00786969 -0.005" mass="0.002" fullinertia="1.29116e-07 1.29643e-07 2.25426e-07 -1.14e-10 0 -0"/>
+            <!-- Part gear_4 -->
+          </body>
+        </body>
+      </body>
+      <!-- Link thigh_2 -->
+      <body name="thigh_2" pos="0.0370686 0.0143294 0.0829841" quat="0.563143 0.593545 0.551871 -0.161284">
+        <!-- Joint from body to thigh_2 -->
+        <joint axis="0 0 1" name="backRightThigh" type="hinge"/>
+        <inertial pos="-0 -0.016 -0.004" mass="0.0002" fullinertia="2.5091e-08 2.11e-09 2.5068e-08 -0 0 -0"/>
+        <!-- Part thigh_2 -->
+        <geom type="mesh" class="visual" pos="-0.004 -0.0385664 0.0267861" quat="0 1 0 0" mesh="thigh" material="thigh_material"/>
+        <geom type="mesh" class="collision" pos="-0.004 -0.0385664 0.0267861" quat="0 1 0 0" mesh="thigh" material="thigh_material"/>
+        <!-- Link rleg -->
+        <body name="rleg" pos="0 -0.032 -0.008" quat="0.625983 -0 -0 0.779836">
+          <!-- Joint from thigh_2 to rleg -->
+          <joint axis="0 0 1" name="backRightKnee" type="hinge"/>
+          <inertial pos="-0.013013 -0.0571696 -0.0100646" mass="0.009" fullinertia="6.52513e-06 2.15708e-06 7.99094e-06 -2.66554e-06 -2.2731e-07 -5.95187e-07"/>
+          <!-- Part rrfoot -->
+          <geom type="mesh" class="visual" pos="0.00737192 -0.0761897 -0.008" quat="0.5 -0.5 -0.5 -0.5" mesh="rrfoot" material="rrfoot_material"/>
+          <geom type="mesh" class="collision" pos="0.00737192 -0.0761897 -0.008" quat="0.5 -0.5 -0.5 -0.5" mesh="rrfoot" material="rrfoot_material"/>
+          <!-- Part rlfoot -->
+          <geom type="mesh" class="visual" pos="0.00737192 -0.0841897 -0" quat="0.5 0.5 0.5 -0.5" mesh="rlfoot" material="rlfoot_material"/>
+          <geom type="mesh" class="collision" pos="0.00737192 -0.0841897 -0" quat="0.5 0.5 0.5 -0.5" mesh="rlfoot" material="rlfoot_material"/>
+          <!-- Part rleg -->
+          <geom type="mesh" class="visual" pos="0.00737192 -0.0761897 -0.008" quat="0.5 -0.5 -0.5 -0.5" mesh="rleg" material="rleg_material"/>
+          <geom type="mesh" class="collision" pos="0.00737192 -0.0761897 -0.008" quat="0.5 -0.5 -0.5 -0.5" mesh="rleg" material="rleg_material"/>
+          <!-- Link gear_5 -->
+          <body name="gear_5" pos="3.65419e-05 -0.046 0" quat="0 1 0 0">
+            <!-- Joint from rleg to gear_5 -->
+            <joint axis="0 0 1" name="backRightCalf" type="hinge"/>
+            <inertial pos="-0.0053388 0.00600582 -0.005" mass="0.002" fullinertia="1.29346e-07 1.29413e-07 2.25426e-07 -2.85e-10 -0 -0"/>
+            <!-- Part gear_5 -->
+          </body>
+        </body>
+      </body>
+      <!-- Link thigh_3 -->
+      <body name="thigh_3" pos="-0.0475322 -0.0260215 0.0758769" quat="0.58497 0.702195 0.404696 -0.0308765">
+        <!-- Joint from body to thigh_3 -->
+        <joint axis="0 0 1" name="frontRightThigh" type="hinge"/>
+        <inertial pos="-0 -0.016 -0.004" mass="0.0002" fullinertia="2.5091e-08 2.11e-09 2.5068e-08 -0 -0 0"/>
+        <!-- Part thigh_3 -->
+        <geom type="mesh" class="visual" pos="-0.004 -0.0385664 0.0267861" quat="0 1 0 0" mesh="thigh" material="thigh_material"/>
+        <geom type="mesh" class="collision" pos="-0.004 -0.0385664 0.0267861" quat="0 1 0 0" mesh="thigh" material="thigh_material"/>
+        <!-- Link rleg_2 -->
+        <body name="rleg_2" pos="-0 -0.032 -0.008" quat="0.824429 -0 0 0.565966">
+          <!-- Joint from thigh_3 to rleg_2 -->
+          <joint axis="0 0 1" name="frontRightKnee" type="hinge"/>
+          <inertial pos="-0.013013 -0.0571696 -0.0100646" mass="0.009" fullinertia="6.52513e-06 2.15708e-06 7.99094e-06 -2.66554e-06 -2.2731e-07 -5.95187e-07"/>
+          <!-- Part rlfoot_2 -->
+          <geom type="mesh" class="visual" pos="0.00737192 -0.0761897 -0.008" quat="0.5 -0.5 -0.5 -0.5" mesh="rlfoot" material="rlfoot_material"/>
+          <geom type="mesh" class="collision" pos="0.00737192 -0.0761897 -0.008" quat="0.5 -0.5 -0.5 -0.5" mesh="rlfoot" material="rlfoot_material"/>
+          <!-- Part rleg_2 -->
+          <geom type="mesh" class="visual" pos="0.00737192 -0.0761897 -0.008" quat="0.5 -0.5 -0.5 -0.5" mesh="rleg" material="rleg_material"/>
+          <geom type="mesh" class="collision" pos="0.00737192 -0.0761897 -0.008" quat="0.5 -0.5 -0.5 -0.5" mesh="rleg" material="rleg_material"/>
+          <!-- Part rrfoot_2 -->
+          <geom type="mesh" class="visual" pos="0.00737192 -0.0761897 -0.008" quat="0.5 -0.5 -0.5 -0.5" mesh="rrfoot" material="rrfoot_material"/>
+          <geom type="mesh" class="collision" pos="0.00737192 -0.0761897 -0.008" quat="0.5 -0.5 -0.5 -0.5" mesh="rrfoot" material="rrfoot_material"/>
+          <!-- Link gear_6 -->
+          <body name="gear_6" pos="3.65419e-05 -0.046 0" quat="0 1 0 0">
+            <!-- Joint from rleg_2 to gear_6 -->
+            <joint axis="0 0 1" name="frontRightCalf" type="hinge"/>
+            <inertial pos="-0.000389385 -0.00802627 -0.005" mass="0.002" fullinertia="1.29094e-07 1.29665e-07 2.25426e-07 2.8e-11 0 0"/>
+            <!-- Part gear_6 -->
+          </body>
+        </body>
+      </body>
+      <!-- Link gear_7 -->
+      <body name="gear_7" pos="0.068669 -0.0376693 0.00204868" quat="0.770263 -0.578869 -0.0897387 0.252097">
+        <!-- Joint from body to gear_7 TODO: Point this joint to Part gear_8 -->
+        <joint axis="0 0 1" name="backLeftGear" type="hinge"/>
+        <inertial pos="3.57143e-05 0 -0.005" mass="0.002" fullinertia="1.29667e-07 1.29093e-07 2.25426e-07 0 0 -0"/>
+        <!-- Part gear_7 -->
+        <geom type="mesh" class="visual" pos="0.0405968 0.0451753 0" quat="0.5 0.5 0.5 -0.5" mesh="gear" material="gear_material"/>
+        <geom type="mesh" class="collision" pos="0.0405968 0.0451753 0" quat="0.5 0.5 0.5 -0.5" mesh="gear" material="gear_material"/>
+      </body>
+      <!-- Link thigh_4 -->
+      <body name="thigh_4" pos="0.0736277 -0.0576245 0.0563184" quat="0.599581 -0.564884 0.155078 0.545307">
+        <!-- Joint from body to thigh_4 -->
+        <joint axis="0 0 1" name="backLeftThigh" type="hinge"/>
+        <inertial pos="0 0.016 -0.004" mass="0.0002" fullinertia="2.5091e-08 2.11e-09 2.5068e-08 0 0 -0"/>
+        <!-- Part thigh_4 -->
+        <geom type="mesh" class="visual" pos="-0.004 -0.00656639 0.0267861" quat="0 1 0 0" mesh="thigh" material="thigh_material"/>
+        <geom type="mesh" class="collision" pos="-0.004 -0.00656639 0.0267861" quat="0 1 0 0" mesh="thigh" material="thigh_material"/>
+        <!-- Link lleg_2 -->
+        <body name="lleg_2" pos="0 0.032 -0.008" quat="0.715197 -0 -0 -0.698922">
+          <!-- Joint from thigh_4 to lleg_2 -->
+          <joint axis="0 0 1" name="backLeftKnee" type="hinge"/>
+          <inertial pos="-0.013013 0.0571696 -0.0100646" mass="0.009" fullinertia="6.52513e-06 2.15708e-06 7.99094e-06 2.66554e-06 -2.2731e-07 5.95187e-07"/>
+          <!-- Part llfoot_2 -->
+          <geom type="mesh" class="visual" pos="0.00737192 0.0761897 -0.008" quat="0.5 0.5 0.5 -0.5" mesh="llfoot" material="llfoot_material"/>
+          <geom type="mesh" class="collision" pos="0.00737192 0.0761897 -0.008" quat="0.5 0.5 0.5 -0.5" mesh="llfoot" material="llfoot_material"/>
+          <!-- Part lleg_2 -->
+          <geom type="mesh" class="visual" pos="0.00737192 0.0761897 -0.008" quat="0.5 0.5 0.5 -0.5" mesh="lleg" material="lleg_material"/>
+          <geom type="mesh" class="collision" pos="0.00737192 0.0761897 -0.008" quat="0.5 0.5 0.5 -0.5" mesh="lleg" material="lleg_material"/>
+          <!-- Part lrfoot_2 -->
+          <geom type="mesh" class="visual" pos="-0.0655589 0.0841897 -0.008" quat="0.5 -0.5 0.5 0.5" mesh="lrfoot" material="lrfoot_material"/>
+          <geom type="mesh" class="collision" pos="-0.0655589 0.0841897 -0.008" quat="0.5 -0.5 0.5 0.5" mesh="lrfoot" material="lrfoot_material"/>
+          <!-- Link gear_8 -->
+          <body name="gear_8" pos="3.65419e-05 0.046 -0" quat="0 1 0 0">
+            <!-- Joint from lleg_2 to gear_8 -->
+            <joint axis="0 0 1" name="backLeftCalf" type="hinge"/>
+            <inertial pos="0.00612363 -0.00520326 -0.005" mass="0.002" fullinertia="1.29426e-07 1.29333e-07 2.25426e-07 -2.83e-10 0 0"/>
+            <!-- Part gear_8 -->
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <asset>
+    <mesh file="thigh.stl"/>
+    <mesh file="rleg.stl"/>
+    <mesh file="rlfoot.stl"/>
+    <mesh file="lrfoot.stl"/>
+    <mesh file="gear.stl"/>
+    <mesh file="rrfoot.stl"/>
+    <mesh file="lleg.stl"/>
+    <mesh file="llfoot.stl"/>
+    <mesh file="body.stl"/>
+    <material name="body_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="gear_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="thigh_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="lleg_material" rgba="0.615686 0.811765 0.929412 1"/>
+    <material name="llfoot_material" rgba="0 0 0 1"/>
+    <material name="lrfoot_material" rgba="0 0 0 1"/>
+    <material name="rrfoot_material" rgba="0 0 0 1"/>
+    <material name="rlfoot_material" rgba="0 0 0 1"/>
+    <material name="rleg_material" rgba="0.615686 0.811765 0.929412 1"/>
+  </asset>
+  <actuator>
+    <position class="C:\Users\gooey\OneDrive\Documents\GitHub\LEGO-quadruped\lego_quadruped" name="frontRightGear" joint="frontRightGear"/>
+    <position class="C:\Users\gooey\OneDrive\Documents\GitHub\LEGO-quadruped\lego_quadruped" name="backRightGear" joint="backRightGear"/>
+    <position class="C:\Users\gooey\OneDrive\Documents\GitHub\LEGO-quadruped\lego_quadruped" name="frontLeftGear" joint="frontLeftGear"/>
+    <position class="C:\Users\gooey\OneDrive\Documents\GitHub\LEGO-quadruped\lego_quadruped" name="backLeftGear" joint="backLeftGear"/>
+  </actuator>
+  <equality>
+    <weld body1="gear" body2="gear_6"/>
+    <weld body1="gear_2" body2="gear_5"/>
+    <weld body1="gear_3" body2="gear_4"/>
+    <weld body1="gear_7" body2="gear_8"/>
+  </equality>
+</mujoco>
