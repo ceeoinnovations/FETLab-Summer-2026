@@ -1,6 +1,6 @@
 # Q-Learning Visualizer (SillyWalk-QLearn-V2)
 
-A browser-based tool that trains a LEGO Education (SPIKE-style) robot with a
+A browser-based tool that trains a LEGO Education CS+AI/Science robot with a
 **Double Motor** unit to walk in a straight line using tabular **Q-learning**.
 Everything — the UI, the training loop, the Bluetooth communication, and the
 reinforcement-learning math — runs client-side in the browser via
