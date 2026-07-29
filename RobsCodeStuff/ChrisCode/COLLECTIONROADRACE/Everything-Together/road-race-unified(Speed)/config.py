@@ -23,7 +23,7 @@ SERIAL_COLOR_SENSOR = 2283
 # Smartphone camera stream index/URL via Camo Studio (appears as a virtual
 # webcam once Camo Studio is running and phone is connected). Use 0 for
 # laptop webcam during testing without a phone.
-CAMERA = 1
+CAMERA = 3
 
 # ══════════════════════════════════════════════════════════════════════
 # Everything below is shared tuning, preserved as-authored from each
