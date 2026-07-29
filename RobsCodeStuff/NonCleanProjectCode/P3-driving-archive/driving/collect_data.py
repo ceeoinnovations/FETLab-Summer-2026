@@ -22,6 +22,7 @@ import cv2
 import os
 from config import CAMERA
 from model import SYMBOL_CLASSES
+from camlib import pick_camera
 from pathlib import Path
 
 # ── Adjustable capture settings ──────────────────────────────────────────
@@ -47,11 +48,7 @@ for cls in SYMBOL_CLASSES:
 counts  = {cls: len(os.listdir(os.path.join(DATA_DIR, cls))) for cls in SYMBOL_CLASSES}
 KEY_MAP = {ord(str(i + 1)): SYMBOL_CLASSES[i] for i in range(len(SYMBOL_CLASSES))}
 
-print(f"Connecting to camera: {CAMERA}")
-cap = cv2.VideoCapture(CAMERA)
-if not cap.isOpened():
-    raise RuntimeError(f"Could not open camera: {CAMERA}\n"
-                       "Check the IP address in config.py and that the app is running.")
+cap = pick_camera(default_camera=CAMERA)
 
 current_class = None
 

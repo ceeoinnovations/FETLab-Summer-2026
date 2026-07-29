@@ -2,58 +2,52 @@
 
 A sketch-reading robot. A smartphone mounted on the LEGO double motor points straight down at the floor. You place hand-drawn command cards under the robot — forward arrow, backward arrow, left turn, right turn, stop — and the robot executes them in real time using a trained image classifier.
 
----
-
 ## How it works
 
 ```
-Smartphone camera (pointing down)
-        ↓  Wi-Fi stream
+Smartphone camera
+        ↓ 
+(Via Wi-Fi stream)
+        ↓  
   collect_data.py  →  train.py  →  drive.py
-    (capture cards)   (learn)      (read & drive)
+    (collect)        (learn)    (read & drive)
 ```
 
 1. **Collect** — Stream the phone camera to your laptop. Hold each sketch card under the camera and save labeled images.
 2. **Train** — Fine-tune MobileNetV2 on your card images.
-3. **Drive** — The robot reads the card under it, classifies the symbol, and drives accordingly. Swap cards to change command.
-
----
+3. **Read & Drive** — The robot reads the card under it, classifies the symbol, and drives accordingly. Swap cards to change command.
 
 ## Setup
 
-### 1. Edit config.py
+### 1. Install dependencies
 
-Open [config.py](config.py) — this is the only file you need to change:
-
-```python
-SERIAL = 1128                              # your LEGO Bluetooth card serial
-CAMERA = "http://192.168.1.100:8080/video" # your phone's stream URL
-CONFIDENCE_THRESHOLD = 0.70               # how certain before acting
+```bash
+pip install -r requirements.txt
 ```
 
-### 2. Get the phone camera streaming
+### 2. Download Camo Studio
 
-**Android — IP Webcam (recommended, free)**
-1. Install [IP Webcam](https://play.google.com/store/apps/details?id=com.pas.webcam) from the Play Store.
-2. Open the app → scroll to the bottom → tap **Start server**.
-3. Note the URL shown (e.g. `http://192.168.1.42:8080`).
-4. Set `CAMERA = "http://192.168.1.42:8080/video"` in `config.py`.
+1. Install [Camo](https://apps.apple.com/app/camo/id1451011458) on your phone and computer.
+2. In the laptop application, click the dropdown menu under "Devices" and select "+ Pair Camo Camera". You should see a QR code.
+3. In the mobile application, click the Wi-Fi symbol in the top right. Scan the QR code on the computer to stream video feed from your phone to your camera.
 
-**iOS — Camo**
-1. Install [Camo](https://apps.apple.com/app/camo/id1451011458) on iPhone and Mac.
-2. Connect by USB or Wi-Fi; Camo appears as a virtual camera (index `1` or `2`).
-3. Set `CAMERA = 1` (or whichever index Camo uses) in `config.py`.
 
-**Testing without a phone**
-Set `CAMERA = 0` to use your laptop webcam and hold cards up to it instead.
+### 3. Edit config.py
 
-### 3. Mount the phone on the robot
+Open [config.py](config.py) — this is the only file you need to change.
 
-- Tape or rubber-band the phone to the top of the LEGO double motor assembly with the camera lens facing straight down.
-- The camera should have a clear view of an A5/half-letter area directly beneath the robot.
+```python
+SERIAL = 1227                              # your LEGO Bluetooth card serial
+CONFIDENCE_THRESHOLD = 0.70                # how certain before acting
+```
+
+### 4. Mount the phone on the robot
+
+- Use Legos to mount the phone.
+- The camera should have a clear view of the ground in front of it.
 - Make sure the phone and laptop are on the same Wi-Fi network.
 
-### 4. Make the sketch cards
+### 5. Make the sketch cards
 
 Draw each symbol on a separate piece of white paper or card stock, large enough to fill the camera's view:
 
@@ -71,35 +65,48 @@ Draw each symbol on a separate piece of white paper or card stock, large enough 
 - Keep the style consistent across cards — the model learns your handwriting.
 - Laminate or use card stock so cards stay flat on the floor.
 
-### 5. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
----
 
 ## Step 1: Collect training images
+
+Have your phone already streaming video to your computer via Camo Studio.
 
 ```bash
 python collect_data.py
 ```
 
-A window opens showing the phone camera feed live on your laptop.
+The Camo Studio camera feed should automatically be connected to. An overlay should pop-up that allows you to start data collection.
+
+> **Note on the overlay:** the symbol name / counts / instructions text is drawn only on the preview window, on a copy of the frame. The image actually written to disk is the clean, un-overlaid frame — so the UI text never ends up baked into your training data.
 
 **Workflow:**
 1. Press a number key (`1`–`5`) to select a symbol class.
 2. Place that sketch card flat on the floor under the robot/camera.
-3. Press **Space** to capture. Aim for **40–60 images per class**.
+3. Capture frames using either method below. Aim for **40–60 images per class**.
 4. Vary the card slightly between captures — shift it left/right, rotate a few degrees, move it closer or further.
 5. Switch to the next class and repeat.
 6. Press **Q** when done.
 
+**Capture controls:**
+
+| Key | Behavior |
+|---|---|
+| **Space** | Starts a timed burst: first waits `PRE_RECORD_DELAY_SEC` seconds so you can get the card positioned, shown as a "GET READY …s" countdown, then auto-captures frames at `TIMER_CAPTURE_HZ` for `TIMER_DURATION_SEC` seconds (shown as "RECORDING …s left"), then stops on its own. |
+| **Enter** | Tap once to capture a single frame immediately. Hold it down to keep capturing frames for as long as it's held. |
+
+All adjustable at the top of `collect_data.py`:
+
+```python
+TIMER_CAPTURE_HZ       = 10    # frames captured per second during a Space burst
+TIMER_DURATION_SEC     = 3.0   # how long a Space burst lasts, in seconds
+PRE_RECORD_DELAY_SEC   = 3.0   # seconds to position the card before capture starts
+ENTER_MIN_INTERVAL_SEC = 0.15  # time between captured frames when holding down enter
+```
+
+You can't switch classes or start a new Space burst while a countdown or timed burst is already running — let it finish before doing either.
+
 **Why vary?** The robot won't always stop perfectly centered over a card. Diversity in your training images (slight rotation, offset, distance) makes the model handle real driving conditions.
 
 **Important — no horizontal flip augmentation:** A left arrow flipped is a right arrow. `train.py` deliberately omits horizontal flipping for this reason. Rotation augmentation (±20°) is used instead to handle card placement angle.
-
----
 
 ## Step 2: Train
 
@@ -121,15 +128,15 @@ Epoch 20/20  train=0.0821  val=0.1203  acc=96.0%
 
 Validation accuracy above 90% means the model is ready. `training_curve.png` is saved for review.
 
----
-
 ## Step 3: Drive
+
+Have your phone already streaming video to your computer via Camo Studio.
 
 ```bash
 python drive.py
 ```
 
-The laptop window shows the phone camera feed with:
+A laptop window will open showing the phone camera feed with:
 - **Top**: predicted symbol and confidence percentage (green = acting, orange = uncertain/stopped)
 - **Second line**: left and right motor speeds being sent
 - **Bottom**: a probability bar for each class
@@ -143,8 +150,6 @@ The laptop window shows the phone camera feed with:
 **Adjusting sensitivity:** If the robot acts on uncertain readings, raise `CONFIDENCE_THRESHOLD` in `config.py` (e.g. 0.80). If it's too hesitant, lower it (e.g. 0.60).
 
 Press **Q** to quit and stop the motors.
-
----
 
 ## Troubleshooting
 
