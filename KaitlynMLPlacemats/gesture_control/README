@@ -1,0 +1,110 @@
+# Gesture-Controlled Robot (LEGO Education CS & AI Kit)
+
+Control a Double-Motor robot with hand gestures seen through a webcam:
+
+| Gesture | Robot action |
+|---|---|
+| 👋 Open hand | Drive forward |
+| ✊ Fist | Stop |
+| 👍 Thumbs up | Turn right |
+| 👉 Point | Turn left |
+
+## How it works
+
+1. **`gesture_data_collector.py`** – you show each gesture to the webcam and
+   press a number key to save an example. MediaPipe Hands turns your hand
+   into 21 landmark points; we normalize them (relative to the wrist, scaled
+   by hand size) so it doesn't matter how close or where in frame your hand
+   is. Examples are saved to `gesture_data.json`.
+2. **`gesture_classifier.py`** – a nearest-neighbor classifier. To classify a
+   new hand pose, it measures the distance to every saved example and takes
+   a majority vote among the closest matches (k-NN). No training step, no
+   GPU — just "which examples does this look most like?", the same idea as
+   the color-sensor activity.
+3. **`gesture_robot_control.py`** – runs the webcam + classifier live,
+   smooths out flicker by requiring a gesture to win several frames in a
+   row, and sends the matching command to the LEGO Education Double Motor
+   over BLE.
+
+## Setup
+
+```bash
+pip install -r requirements.txt
+```
+
+> **Note:** MediaPipe removed its old `mp.solutions` API in recent pip
+> releases (0.10.31+) in favor of a new "Tasks" API. This project already
+> uses the new API (`gesture_features.py`), so `pip install mediapipe`
+> works with whatever current version pip gives you — no version pinning
+> needed. The first time you run either script, it will download a small
+> (~10MB) `hand_landmarker.task` model file into the project folder and
+> reuse it after that (needs internet access once).
+
+1. Charge and power on your robot's Double Motor hub, and put it in
+   Bluetooth broadcasting mode.
+2. Find the connection card that comes with your kit — note its **color**
+   and the **serial number** printed on it.
+3. Open `gesture_robot_control.py` and update these two lines near the top
+   to match your card:
+
+   ```python
+   CARD_COLOR_NAME = "LEGO_COLOR_AZURE"   # change to your card's color
+   CARD_SERIAL = "3683"                    # change to your card's serial
+   ```
+
+   This matters most in a classroom with several robots broadcasting at
+   once — it makes sure your program connects to *your* robot.
+
+## Running it
+
+**Step 1 — collect examples for each gesture:**
+
+```bash
+python gesture_data_collector.py
+```
+
+Show each gesture and press `1` (open hand), `2` (fist), `3` (thumbs up),
+or `4` (point). Aim for 20-30 examples per gesture, moving your hand
+slightly between captures. Press `s` to save, `q` to quit.
+
+**Step 2 — preview the classifier without a robot connected (optional but
+recommended first):**
+
+```bash
+python gesture_robot_control.py --no-robot
+```
+
+Confirm the overlay correctly recognizes each gesture before wiring up the
+robot. If a gesture is often misread, go back to step 1 and add more
+(or more varied) examples for it.
+
+**Step 3 — drive the robot:**
+
+```bash
+python gesture_robot_control.py
+```
+
+Press `q` in the video window to stop and disconnect cleanly.
+
+## Tuning knobs (top of `gesture_robot_control.py`)
+
+- `DRIVE_SPEED`, `TURN_SPEED` — motor speed (0-100).
+- `TURN_STEP_DEGREES` — how far one "turn" gesture rotates the robot.
+- `CONFIDENCE_THRESHOLD` — how much the k nearest neighbors must agree
+  before trusting a prediction (raise if it's jumpy, lower if it feels
+  unresponsive).
+- `STABLE_FRAMES_REQUIRED` / `VOTE_WINDOW` — how many consecutive frames
+  must agree before a gesture takes effect (raise to reduce false
+  triggers, lower for a snappier response).
+
+## Notes
+
+- Only one hand is tracked at a time (`max_num_hands=1` in
+  `gesture_features.py`) — simplest for a single student driving a robot.
+- The "point" gesture is treated generically (index finger extended) rather
+  than requiring the finger to point specifically left, since MediaPipe
+  landmark position alone doesn't reliably encode absolute pointing
+  direction. It's always mapped to "turn left" per the activity sheet.
+- If BLE connection fails, double check the hub is charged, powered on,
+  broadcasting, and that the card color/serial in the script match your
+  physical connection card.
