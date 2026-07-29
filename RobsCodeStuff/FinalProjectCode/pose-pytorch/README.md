@@ -2,18 +2,6 @@
 
 Train your own pose classifier with PyTorch and use it to drive a LEGO Education double motor with your body. Unlike `pose-library` (which uses MediaPipe's pre-built model), this project teaches you to build and train the model yourself using **transfer learning** on images you capture.
 
----
-
-## Recent changes to `collect_data.py`
-
-- **Fixed:** the on-screen UI (class name, counts, instructions) used to get drawn directly onto the frame before it was saved, so it was baked into your training images. It's now drawn on a display-only copy — saved images are the clean, raw frame with no text on them.
-- **Added:** a timed capture burst (tap **Space**) that auto-captures at an adjustable rate for an adjustable duration, so you can hold a pose and let it collect several frames for you.
-- **Added:** **Enter** to capture — tap once for a single frame, hold to keep capturing.
-
-See "Step 1: Collect training data" below for full details. If you have old images collected before this fix, recollect them — the old script's images may have the UI text baked in.
-
----
-
 ## How it works
 
 The pipeline has three stages:
@@ -23,11 +11,9 @@ collect_data.py  →  train.py  →  main_pose_train.py
   (capture)         (learn)           (drive)
 ```
 
-1. **Collect** — You stand in front of your webcam and press keys to save labeled images of each gesture into folders.
-2. **Train** — A pretrained MobileNetV2 CNN is fine-tuned on your images. Only its final layer changes; the rest already knows how to see.
+1. **Capture** — You stand in front of your webcam and press keys to save labeled images of each gesture into folders.
+2. **Learn** — A pretrained MobileNetV2 CNN is fine-tuned on your images. Only its final layer changes; the rest already knows how to see.
 3. **Drive** — The trained model classifies your pose in real time and maps each gesture to a motor command.
-
----
 
 ## The model: MobileNetV2 + transfer learning
 
@@ -44,8 +30,6 @@ During training, the backbone weights are **frozen** — only the new head is up
 - 30–50 images per class is enough.
 - You don't need a GPU (Apple MPS or CPU both work fine).
 
----
-
 ## Gesture classes
 
 | Key | Class | Motor command |
@@ -56,7 +40,6 @@ During training, the backbone weights are **frozen** — only the new head is up
 | `4` | `turn_left` | Left reverse, right forward (−60, 100) |
 | `5` | `turn_right` | Left forward, right reverse (100, −60) |
 
----
 
 ## Files
 
@@ -73,8 +56,6 @@ During training, the backbone weights are **frozen** — only the new head is up
 
 `lelib.py` and `camlib.py` live in the project root and are shared across all examples.
 
----
-
 ## Setup
 
 ### 1. Install dependencies
@@ -90,10 +71,8 @@ pip install -r requirements.txt
 Open `main_pose_train.py` and change the `SERIAL` constant to your Bluetooth card's number:
 
 ```python
-SERIAL = 2279  # ← change this
+SERIAL = 1227  # ← change this
 ```
-
----
 
 ## Step 1: Collect training data
 
@@ -139,8 +118,6 @@ You can't switch classes or start a new Space burst while a timed burst is alrea
 
 Images are saved to `pose-pytorch/data/<class_name>/00000.jpg`, `00001.jpg`, etc. — always inside the `pose-pytorch` folder regardless of which directory you run the script from. You can delete bad images manually.
 
----
-
 ## Step 2: Train the model
 
 ```bash
@@ -169,7 +146,6 @@ Epoch 20/20  train=0.1823  val=0.2104  acc=95.0%
 
 When training finishes, `training_curve.png` is saved showing loss and accuracy over epochs. The saved model file `pose_model.pt` contains both the weights and the class names.
 
----
 
 ## Step 3: Drive with your pose
 
@@ -184,7 +160,6 @@ The webcam window shows:
 
 Strike a pose to drive. Press **Q** or close the window to stop the motors and quit.
 
----
 
 ## Troubleshooting
 
