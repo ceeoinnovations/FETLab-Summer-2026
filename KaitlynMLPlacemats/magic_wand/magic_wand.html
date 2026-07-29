@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Magic Wand — Gesture Classifier</title>
+<style>
+  :root {
+    --ink: #4d4160;
+    --ink-dim: #8577a0;
+    --ink-faint: #b0a5c8;
+    --paper: #ffffff;
+    --paper-2: #fdfaff;
+    --paper-3: #f5eefc;
+    --panel-border: #e8dcf5;
+    --peach: #f3b98a;
+    --peach-dim: #d99a63;
+    --lilac: #a894ec;
+    --lilac-2: #8d76e0;
+    --good: #6fbf94;
+    --bad: #e0879a;
+    --radius: 14px;
+    font-size: 16px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(168,148,236,0.16), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 110% 10%, rgba(243,185,138,0.18), transparent 60%),
+      radial-gradient(ellipse 800px 600px at 50% 120%, rgba(111,191,148,0.10), transparent 60%),
+      #fdf9ff;
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    padding: 32px 16px 80px;
+  }
+
+  .wrap { max-width: 720px; margin: 0 auto; }
+
+  header.page-head {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  header.page-head .glyph {
+    font-size: 34px;
+    display: inline-block;
+    margin-bottom: 6px;
+    filter: drop-shadow(0 0 14px rgba(243,185,138,0.55));
+  }
+
+  h1 {
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-weight: 700;
+    font-size: 2rem;
+    margin: 0 0 6px;
+    letter-spacing: 0.3px;
+    color: var(--ink);
+  }
+
+  h1 .amp { color: var(--peach-dim); font-style: italic; }
+
+  .subtitle {
+    color: var(--ink-dim);
+    font-size: 0.95rem;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: linear-gradient(180deg, var(--paper), var(--paper-3));
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 18px;
+    box-shadow: 0 10px 26px -14px rgba(141,118,224,0.25);
+  }
+
+  .card h2 {
+    font-family: Georgia, serif;
+    font-size: 1.05rem;
+    margin: 0 0 4px;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card .card-desc {
+    color: var(--ink-dim);
+    font-size: 0.85rem;
+    margin: 0 0 16px;
+  }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  button {
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    padding: 11px 18px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.08s ease, filter 0.15s ease, opacity 0.15s ease;
+    letter-spacing: 0.2px;
+  }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+  button.primary {
+    background: linear-gradient(180deg, var(--lilac), var(--lilac-2));
+    color: white;
+  }
+  button.primary:hover:not(:disabled) { filter: brightness(1.06); }
+
+  button.gold {
+    background: linear-gradient(180deg, #f7cda3, var(--peach));
+    color: #5b3a1a;
+  }
+  button.gold:hover:not(:disabled) { filter: brightness(1.05); }
+
+  button.ghost {
+    background: transparent;
+    border-color: var(--panel-border);
+    color: var(--ink-dim);
+  }
+  button.ghost:hover:not(:disabled) { border-color: var(--ink-faint); color: var(--ink); }
+
+  button.danger {
+    background: transparent;
+    border-color: rgba(224,135,154,0.5);
+    color: #c85f77;
+  }
+  button.danger:hover:not(:disabled) { background: rgba(224,135,154,0.12); }
+
+  input[type=text], select {
+    font-family: inherit;
+    font-size: 0.92rem;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--panel-border);
+    background: var(--paper);
+    color: var(--ink);
+    outline: none;
+  }
+  input[type=text]:focus, select:focus { border-color: var(--lilac); }
+  input[type=text] { flex: 1; min-width: 160px; }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    background: var(--paper-3);
+    border: 1px solid var(--panel-border);
+    color: var(--ink-dim);
+  }
+  .status-pill .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--ink-faint);
+  }
+  .status-pill.connected { color: #3f9a6d; border-color: rgba(111,191,148,0.4); background: #eefaf3; }
+  .status-pill.connected .dot { background: var(--good); box-shadow: 0 0 8px var(--good); }
+  .status-pill.error { color: #c85f77; border-color: rgba(224,135,154,0.4); background: #fdeef1; }
+  .status-pill.error .dot { background: var(--bad); }
+
+  .imu-readout {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px 14px;
+  }
+  .imu-readout span b { color: var(--ink-dim); font-weight: 600; }
+
+  .people-list { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-direction: column; gap: 8px; }
+  .people-list li {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--paper-2);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+  .people-list .name { font-weight: 600; }
+  .people-list .count { color: var(--ink-faint); font-size: 0.82rem; }
+  .people-list .remove {
+    background: none; border: none; color: var(--ink-faint); cursor: pointer;
+    font-size: 0.78rem; padding: 4px 8px; border-radius: 6px;
+  }
+  .people-list .remove:hover { color: #c85f77; background: rgba(224,135,154,0.12); }
+
+  .empty-note { color: var(--ink-faint); font-size: 0.85rem; font-style: italic; padding: 4px 0; }
+
+  .swish-progress {
+    height: 6px; border-radius: 999px; background: var(--paper-3);
+    border: 1px solid var(--panel-border); overflow: hidden; margin-top: 12px;
+    display: none;
+  }
+  .swish-progress.active { display: block; }
+  .swish-progress .bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--lilac), var(--peach));
+    transition: width 0.05s linear;
+  }
+  .swish-label { font-size: 0.85rem; color: var(--ink-dim); margin-top: 8px; min-height: 1.2em; }
+
+  .guess-result {
+    text-align: center;
+    padding: 18px 10px 6px;
+  }
+  .guess-result .guess-name {
+    font-family: Georgia, serif;
+    font-size: 1.6rem;
+    color: var(--peach-dim);
+    margin: 4px 0 14px;
+  }
+  .ranking { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+  .ranking li {
+    display: flex; justify-content: space-between; font-size: 0.85rem;
+    padding: 7px 12px; border-radius: 8px; background: var(--paper-2);
+    border: 1px solid var(--panel-border); color: var(--ink-dim);
+  }
+  .ranking li:first-child { border-color: rgba(243,185,138,0.6); color: var(--ink); background: #fdf3e8; }
+
+  .log {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--ink-dim);
+    background: var(--paper-2);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    max-height: 130px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+  }
+  .log div { padding: 1px 0; }
+  .log .err { color: #c85f77; }
+
+  .unsupported {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .unsupported .glyph { font-size: 40px; }
+
+  .hidden { display: none !important; }
+
+  footer {
+    text-align: center;
+    color: var(--ink-faint);
+    font-size: 0.78rem;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page-head">
+    <div class="glyph">🪄</div>
+    <h1>Magic W<span class="amp">a</span>nd</h1>
+    <p class="subtitle">Attach a Double Motor to your wand, teach it a few swishes, then see how it guesses who's swishing — and what happens when someone practices a lot more than someone else.</p>
+  </header>
+
+  <!-- Unsupported browser notice -->
+  <div class="card unsupported hidden" id="unsupportedCard">
+    <div class="glyph">🔌</div>
+    <h2>This browser can't connect to the wand</h2>
+    <p class="card-desc">Web Bluetooth is needed to talk to the LEGO hub, and it's only available in Chrome or Edge on a computer or Android phone (not Safari, not iPhone/iPad, not Firefox). Try opening this page in Chrome.</p>
+  </div>
+
+  <div id="app" class="hidden">
+
+    <!-- Connection card -->
+    <div class="card">
+      <h2>1. Connect your wand</h2>
+      <p class="card-desc">Power on the Double Motor attached to your wand, then connect. Its button light will turn gold once it's connected so you know which hub is which.</p>
+      <div class="row" style="margin-bottom:12px;">
+        <select id="cardColorSelect">
+          <option value="">Any card color</option>
+          <option value="RED">Red</option>
+          <option value="YELLOW">Yellow</option>
+          <option value="BLUE">Blue</option>
+          <option value="GREEN">Green</option>
+          <option value="PURPLE">Purple</option>
+          <option value="MAGENTA">Magenta</option>
+          <option value="ORANGE">Orange</option>
+          <option value="AZURE">Azure</option>
+        </select>
+        <input type="text" id="cardSerialInput" placeholder="Card serial (optional)" inputmode="numeric" maxlength="4" style="max-width:180px;">
+      </div>
+      <p class="card-desc" style="margin-top:-8px;">If several wands are powered on nearby, matching the color and number printed on your Connection Card makes sure you connect to the right one. Leave blank to just pick from a list.</p>
+      <div class="row">
+        <button class="primary" id="connectBtn">Connect wand</button>
+        <span class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">Not connected</span></span>
+      </div>
+      <div class="imu-readout hidden" id="imuReadout">
+        <span>accel X: <b id="imuAx">–</b></span>
+        <span>accel Y: <b id="imuAy">–</b></span>
+        <span>accel Z: <b id="imuAz">–</b></span>
+        <span>gyro X: <b id="imuGx">–</b></span>
+        <span>gyro Y: <b id="imuGy">–</b></span>
+        <span>gyro Z: <b id="imuGz">–</b></span>
+      </div>
+    </div>
+
+    <!-- Record swishes -->
+    <div class="card">
+      <h2>2. Record swishes</h2>
+      <p class="card-desc">Type a name, hit record, then swish the wand for 2 seconds. Record as many (or as few) swishes per person as you like — that's the whole point.</p>
+      <div class="row" style="margin-bottom:14px;">
+        <input type="text" id="nameInput" placeholder="Whose swish is this?">
+        <button class="gold" id="recordBtn" disabled>Record a swish</button>
+      </div>
+      <div class="swish-progress" id="swishProgress"><div class="bar" id="swishBar"></div></div>
+      <div class="swish-label" id="swishLabel"></div>
+      <ul class="people-list" id="peopleList"></ul>
+      <div class="empty-note" id="peopleEmptyNote">No one's recorded a swish yet.</div>
+    </div>
+
+    <!-- Test -->
+    <div class="card">
+      <h2>3. Mystery swish</h2>
+      <p class="card-desc">Swish the wand and see who the computer thinks is swishing, ranked closest match first.</p>
+      <div class="row">
+        <button class="primary" id="testBtn" disabled>Swish to test</button>
+      </div>
+      <div class="swish-progress" id="testProgress"><div class="bar" id="testBar"></div></div>
+      <div class="swish-label" id="testLabel"></div>
+      <div id="testResult"></div>
+    </div>
+
+    <!-- Reset -->
+    <div class="card">
+      <h2>Reset</h2>
+      <p class="card-desc">Clears every recorded swish. Can't be undone.</p>
+      <button class="danger" id="resetBtn">Clear all data</button>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <h2>Activity log</h2>
+      <div class="log" id="log"></div>
+    </div>
+
+  </div>
+
+  <footer>Runs entirely in this browser tab — nothing is sent anywhere except to the wand over Bluetooth.</footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ===========================================================================
+  // LEGO Education BLE protocol constants
+  // (matches the legoeducation Python package's wire format exactly)
+  // ===========================================================================
+  const SERVICE_UUID = '0000fd02-0000-1000-8000-00805f9b34fb';
+  const WRITE_UUID    = '0000fd02-0001-1000-8000-00805f9b34fb';
+  const NOTIFY_UUID   = '0000fd02-0002-1000-8000-00805f9b34fb';
+
+  const LEGO_COMPANY_ID = 0x0397;
+  const DOUBLE_MOTOR_PRODUCT_BYTES = [0x02, 0x01]; // matches PRODUCT_GROUP_DEVICE_DOUBLE_MOTOR = 513
+
+  // App-facing card color name -> firmware byte value (from legoeducation's
+  // color_map.py _APP_TO_FIRMWARE table), used to build the manufacturer-data
+  // match below. Only colors that actually appear on Connection Cards.
+  const CARD_COLOR_FIRMWARE = {
+    RED: 9, YELLOW: 7, BLUE: 3, GREEN: 6, PURPLE: 2, MAGENTA: 1, ORANGE: 8, AZURE: 4,
+  };
+
+  const MSG = {
+    INFO_REQUEST: 0, INFO_RESPONSE: 1,
+    DEVICE_NOTIFICATION_REQUEST: 40, DEVICE_NOTIFICATION_RESPONSE: 41,
+    DEVICE_NOTIFICATION: 60,
+    LIGHT_COLOR_COMMAND: 110, LIGHT_COLOR_RESULT: 111,
+  };
+
+  const SUBNOTIF = { INFO_DEVICE: 0, IMU_DEVICE: 1, CARD: 3, BUTTON_STATE: 4, MOTOR: 10, COLOR_SENSOR: 12, CONTROLLER: 15, IMU_GESTURE: 16 };
+  // Fixed payload size (bytes) of each sub-notification type, used to skip
+  // over notification kinds this page doesn't care about.
+  const SUBNOTIF_SIZE = { 0: 2, 1: 20, 3: 3, 4: 1, 10: 12, 12: 12, 15: 6, 16: 1 };
+
+  const LEGO_COLOR_GREEN = 6;
+  const LIGHT_PATTERN_SOLID = 0;
+
+  // ===========================================================================
+  // Minimal LEGO Education Double Motor BLE client (Web Bluetooth)
+  // ===========================================================================
+  class DoubleMotorBLE {
+    constructor({ onImu, onLog }) {
+      this.device = null;
+      this.server = null;
+      this.writeChar = null;
+      this.notifyChar = null;
+      this.pending = new Map(); // messageId -> array of resolver fns (FIFO)
+      this.imu = { accelerometerX: 0, accelerometerY: 0, accelerometerZ: 0, gyroscopeX: 0, gyroscopeY: 0, gyroscopeZ: 0 };
+      this.onImu = onImu || (() => {});
+      this.onLog = onLog || (() => {});
+      this.connected = false;
+    }
+
+    log(msg, isErr) { this.onLog(msg, isErr); }
+
+    // Builds a Web Bluetooth request filter that always requires the LEGO
+    // Education GATT service, AND (optionally) narrows to a specific
+    // Connection Card color/serial via the hub's manufacturer data --
+    // the same two signals the reference Python client uses to find hardware.
+    _buildFilters(cardColorName, cardSerial) {
+      const dataPrefix = [...DOUBLE_MOTOR_PRODUCT_BYTES, 0x00, 0x00, 0x00];
+      const mask =       [0xFF, 0xFF, 0x00, 0x00, 0x00];
+
+      if (cardColorName && CARD_COLOR_FIRMWARE[cardColorName] !== undefined) {
+        dataPrefix[2] = CARD_COLOR_FIRMWARE[cardColorName];
+        mask[2] = 0xFF;
+      }
+      const serialNum = Number(cardSerial);
+      if (cardSerial && !Number.isNaN(serialNum) && serialNum >= 0 && serialNum <= 9999) {
+        dataPrefix[3] = serialNum & 0xFF;
+        dataPrefix[4] = (serialNum >> 8) & 0xFF;
+        mask[3] = 0xFF;
+        mask[4] = 0xFF;
+      }
+
+      return [{
+        services: [SERVICE_UUID],
+        manufacturerData: [{
+          companyIdentifier: LEGO_COMPANY_ID,
+          dataPrefix: new Uint8Array(dataPrefix),
+          mask: new Uint8Array(mask),
+        }],
+      }];
+    }
+
+    async connect(cardColorName, cardSerial) {
+      const wantsCardFilter = !!(cardColorName || cardSerial);
+
+      try {
+        this.device = await navigator.bluetooth.requestDevice({
+          filters: this._buildFilters(cardColorName, cardSerial),
+          optionalServices: [SERVICE_UUID],
+        });
+      } catch (e) {
+        if (e.name === 'SecurityError') {
+          throw new Error('Bluetooth is blocked in this context. Web Bluetooth needs a real https:// (or http://localhost) address in a top-level browser tab -- it will NOT work if this page was opened directly as a local file, or if it\'s being viewed inside an embedded preview/iframe. Try hosting this file (e.g. a local "python3 -m http.server" or a free static host) and opening that address in Chrome.');
+        }
+        if (e.name === 'NotFoundError') {
+          throw new Error('No matching wand was found. Make sure it\'s powered on and nearby, and that the color/serial (if set) are correct.');
+        }
+
+        // Some Chrome versions/platforms reject manufacturerData-based
+        // filters outright (unsupported or malformed as far as that build
+        // is concerned). Rather than fail the whole connection over an
+        // optional narrowing feature, fall back to the plain "any Double
+        // Motor" filter that's known to work everywhere.
+        this.log(`Advanced card filter wasn't accepted by this browser (${e.name}: ${e.message}); falling back to a plain device list.`, true);
+        try {
+          this.device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: [SERVICE_UUID] }],
+            optionalServices: [SERVICE_UUID],
+          });
+          if (wantsCardFilter) {
+            this.log('Connected without the color/serial filter -- please double-check you picked the right wand from the list.', true);
+          }
+        } catch (e2) {
+          if (e2.name === 'NotFoundError') {
+            throw new Error('No wand was found or selected. Make sure it\'s powered on and nearby.');
+          }
+          throw new Error('Bluetooth device picker failed: ' + e2.message);
+        }
+      }
+      this.log(`Device selected: ${this.device.name || '(unnamed)'}`);
+
+      this.device.addEventListener('gattserverdisconnected', () => {
+        this.connected = false;
+        this.log('Wand disconnected.', true);
+      });
+
+      try {
+        this.server = await this.device.gatt.connect();
+      } catch (e) {
+        throw new Error('Could not open a Bluetooth connection to the wand: ' + e.message);
+      }
+      this.log('Bluetooth link established.');
+
+      // Small pause before the first read/write: several BLE stacks need a
+      // brief moment after connecting before GATT operations are reliable.
+      await new Promise((r) => setTimeout(r, 250));
+
+      let service, writeChar, notifyChar;
+      try {
+        service = await this.server.getPrimaryService(SERVICE_UUID);
+        writeChar = await service.getCharacteristic(WRITE_UUID);
+        notifyChar = await service.getCharacteristic(NOTIFY_UUID);
+      } catch (e) {
+        throw new Error('Connected, but could not find the expected LEGO service/characteristics: ' + e.message);
+      }
+      this.writeChar = writeChar;
+      this.notifyChar = notifyChar;
+      this.log('Found LEGO service and characteristics.');
+
+      await this.notifyChar.startNotifications();
+      this.notifyChar.addEventListener('characteristicvaluechanged', (event) => {
+        this._handleNotification(event.target.value);
+      });
+      this.log('Listening for hub notifications.');
+
+      // Handshake: ask for hub info, then turn on periodic sensor notifications.
+      let info;
+      try {
+        info = await this._sendAndWait(this._packInfoRequest(), MSG.INFO_RESPONSE, 5000);
+      } catch (e) {
+        throw new Error('Connected, but the hub never responded to the info request. Try disconnecting the hub\'s power and reconnecting it, then try again.');
+      }
+      const productGroupDevice = info.getUint16(14, true);
+      this.log(`Hub responded. Product ID ${productGroupDevice} (513 = Double Motor).`);
+      if (productGroupDevice !== 513) {
+        this.log('Warning: this does not look like a Double Motor. Double-check you picked the right hub.', true);
+      }
+
+      await this._sendAndWait(this._packDeviceNotificationRequest(50), MSG.DEVICE_NOTIFICATION_RESPONSE, 5000);
+      this.log('Sensor notifications enabled.');
+
+      // Confirm which physical hub this is by lighting its button gold.
+      try {
+        await this.setLight(LEGO_COLOR_GREEN, LIGHT_PATTERN_SOLID, 100);
+      } catch (e) {
+        this.log('Connected, but could not set the button light (non-critical): ' + e.message, true);
+      }
+
+      this.connected = true;
+    }
+
+    async disconnect() {
+      try {
+        if (this.device && this.device.gatt.connected) this.device.gatt.disconnect();
+      } catch (e) { /* ignore */ }
+      this.connected = false;
+    }
+
+    // --- low-level framing -------------------------------------------------
+
+    _packInfoRequest() {
+      return new Uint8Array([MSG.INFO_REQUEST]);
+    }
+
+    _packDeviceNotificationRequest(delayMs) {
+      const buf = new ArrayBuffer(3);
+      const view = new DataView(buf);
+      view.setUint8(0, MSG.DEVICE_NOTIFICATION_REQUEST);
+      view.setUint16(1, delayMs, true);
+      return new Uint8Array(buf);
+    }
+
+    _packLightColorCommand(color, pattern, intensity) {
+      const buf = new ArrayBuffer(4);
+      const view = new DataView(buf);
+      view.setUint8(0, MSG.LIGHT_COLOR_COMMAND);
+      view.setInt8(1, color);
+      view.setUint8(2, pattern);
+      view.setUint8(3, intensity);
+      return new Uint8Array(buf);
+    }
+
+    async setLight(color, pattern, intensity) {
+      return this._sendAndWait(this._packLightColorCommand(color, pattern, intensity), MSG.LIGHT_COLOR_RESULT, 3000);
+    }
+
+    async _sendAndWait(bytes, expectedResponseId, timeoutMs) {
+      const promise = new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          this._popPending(expectedResponseId);
+          reject(new Error('Timed out waiting for a response from the wand.'));
+        }, timeoutMs);
+        const list = this.pending.get(expectedResponseId) || [];
+        list.push({ resolve: (v) => { clearTimeout(timer); resolve(v); }, reject });
+        this.pending.set(expectedResponseId, list);
+      });
+      try {
+        await this.writeChar.writeValueWithoutResponse(bytes);
+      } catch (e) {
+        // Some platforms only support writeValue(); fall back.
+        await this.writeChar.writeValue(bytes);
+      }
+      return promise;
+    }
+
+    _popPending(id) {
+      const list = this.pending.get(id);
+      if (list && list.length) {
+        list.shift();
+        if (!list.length) this.pending.delete(id);
+      }
+    }
+
+    _handleNotification(dataView) {
+      if (dataView.byteLength < 1) return;
+      const messageId = dataView.getUint8(0);
+
+      const list = this.pending.get(messageId);
+      if (list && list.length) {
+        const { resolve } = list.shift();
+        if (!list.length) this.pending.delete(messageId);
+        // Strip the 1-byte header so callers work with payload-relative
+        // offsets only (matches the reference Python client's convention).
+        const payload = new DataView(dataView.buffer, dataView.byteOffset + 1, dataView.byteLength - 1);
+        resolve(payload);
+        return;
+      }
+
+      if (messageId === MSG.DEVICE_NOTIFICATION) {
+        this._parseDeviceNotification(dataView);
+      }
+    }
+
+    _parseDeviceNotification(dataView) {
+      if (dataView.byteLength < 3) return;
+      let deviceDataLength = dataView.getUint16(1, true);
+      let offset = 3; // header byte + 2-byte length prefix
+
+      while (deviceDataLength > 0) {
+        const subType = dataView.getUint8(offset);
+        const size = SUBNOTIF_SIZE[subType];
+        if (size === undefined) break; // unknown sub-notification; stop parsing safely
+
+        if (subType === SUBNOTIF.IMU_DEVICE) {
+          const base = offset + 1; // skip sub-type byte
+          this.imu = {
+            orientation: dataView.getUint8(base),
+            yawFace: dataView.getUint8(base + 1),
+            yaw: dataView.getInt16(base + 2, true),
+            pitch: dataView.getInt16(base + 4, true),
+            roll: dataView.getInt16(base + 6, true),
+            accelerometerX: dataView.getInt16(base + 8, true),
+            accelerometerY: dataView.getInt16(base + 10, true),
+            accelerometerZ: dataView.getInt16(base + 12, true),
+            gyroscopeX: dataView.getInt16(base + 14, true),
+            gyroscopeY: dataView.getInt16(base + 16, true),
+            gyroscopeZ: dataView.getInt16(base + 18, true),
+          };
+          this.onImu(this.imu);
+        }
+
+        offset += 1 + size;
+        deviceDataLength -= 1 + size;
+      }
+    }
+  }
+
+  // ===========================================================================
+  // App state + storage
+  // ===========================================================================
+  const STORAGE_KEY = 'magicwand:model';
+
+  let model = {};      // { label: [ [18 features], ... ] }
+  let wand = null;
+  let swishing = false;
+
+  const SAMPLE_SECONDS = 2.0;
+  const SAMPLE_INTERVAL_MS = 50;
+
+  // ----- DOM refs -----
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    unsupportedCard: $('unsupportedCard'), app: $('app'),
+    connectBtn: $('connectBtn'), statusPill: $('statusPill'), statusText: $('statusText'),
+    cardColorSelect: $('cardColorSelect'), cardSerialInput: $('cardSerialInput'),
+    imuReadout: $('imuReadout'), imuAx: $('imuAx'), imuAy: $('imuAy'), imuAz: $('imuAz'),
+    imuGx: $('imuGx'), imuGy: $('imuGy'), imuGz: $('imuGz'),
+    nameInput: $('nameInput'), recordBtn: $('recordBtn'),
+    swishProgress: $('swishProgress'), swishBar: $('swishBar'), swishLabel: $('swishLabel'),
+    peopleList: $('peopleList'), peopleEmptyNote: $('peopleEmptyNote'),
+    testBtn: $('testBtn'), testProgress: $('testProgress'), testBar: $('testBar'), testLabel: $('testLabel'), testResult: $('testResult'),
+    resetBtn: $('resetBtn'), log: $('log'),
+  };
+
+  function log(msg, isErr) {
+    const line = document.createElement('div');
+    if (isErr) line.className = 'err';
+    const time = new Date().toLocaleTimeString();
+    line.textContent = `[${time}] ${msg}`;
+    els.log.appendChild(line);
+    els.log.scrollTop = els.log.scrollHeight;
+  }
+
+  // ----- persistence (plain browser localStorage -- works on any host) -----
+  async function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) model = JSON.parse(raw);
+    } catch (e) { model = {}; }
+  }
+
+  async function saveModel() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(model)); }
+    catch (e) { log('Could not save data locally: ' + e.message, true); }
+  }
+
+  // ===========================================================================
+  // Feature extraction — mirrors the Python version's features_from_raw()
+  // exactly: for each of the 6 raw IMU series, [mean, population stddev, range]
+  // ===========================================================================
+  function seriesStats(series) {
+    const n = series.length;
+    const mean = series.reduce((a, b) => a + b, 0) / n;
+    const variance = series.reduce((a, b) => a + (b - mean) ** 2, 0) / n; // population variance
+    const stddev = Math.sqrt(variance);
+    const range = Math.max(...series) - Math.min(...series);
+    return [mean, stddev, range];
+  }
+
+  function featuresFromRaw(raw) {
+    const keys = ['accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y', 'gyro_z'];
+    let feats = [];
+    for (const k of keys) feats = feats.concat(seriesStats(raw[k]));
+    return feats;
+  }
+
+  function centroid(vectors) {
+    const n = vectors[0].length;
+    const c = new Array(n).fill(0);
+    for (const v of vectors) for (let i = 0; i < n; i++) c[i] += v[i];
+    return c.map((x) => x / vectors.length);
+  }
+
+  function distance(a, b) {
+    let sum = 0;
+    for (let i = 0; i < a.length; i++) sum += (a[i] - b[i]) ** 2;
+    return Math.sqrt(sum);
+  }
+
+  function computeCentroids() {
+    const out = {};
+    for (const [label, vectors] of Object.entries(model)) {
+      if (vectors.length) out[label] = centroid(vectors);
+    }
+    return out;
+  }
+
+  function rankGuesses(feats) {
+    const centroids = computeCentroids();
+    return Object.entries(centroids)
+      .map(([label, c]) => ({ label, dist: distance(feats, c) }))
+      .sort((a, b) => a.dist - b.dist);
+  }
+
+  // ===========================================================================
+  // Swish capture — samples this.imu every 50ms for 2 seconds
+  // ===========================================================================
+  async function captureSwish(progressBar, labelEl, message) {
+    const raw = { accel_x: [], accel_y: [], accel_z: [], gyro_x: [], gyro_y: [], gyro_z: [] };
+    const totalSteps = Math.round((SAMPLE_SECONDS * 1000) / SAMPLE_INTERVAL_MS);
+
+    progressBar.parentElement.classList.add('active');
+    labelEl.textContent = message || 'Swish now!';
+
+    for (let step = 0; step < totalSteps; step++) {
+      raw.accel_x.push(wand.imu.accelerometerX);
+      raw.accel_y.push(wand.imu.accelerometerY);
+      raw.accel_z.push(wand.imu.accelerometerZ);
+      raw.gyro_x.push(wand.imu.gyroscopeX);
+      raw.gyro_y.push(wand.imu.gyroscopeY);
+      raw.gyro_z.push(wand.imu.gyroscopeZ);
+      progressBar.style.width = `${Math.round(((step + 1) / totalSteps) * 100)}%`;
+      await new Promise((r) => setTimeout(r, SAMPLE_INTERVAL_MS));
+    }
+
+    progressBar.parentElement.classList.remove('active');
+    progressBar.style.width = '0%';
+    labelEl.textContent = '';
+
+    return featuresFromRaw(raw);
+  }
+
+  // ===========================================================================
+  // Rendering
+  // ===========================================================================
+  function renderPeopleList() {
+    els.peopleList.innerHTML = '';
+    const labels = Object.keys(model);
+    els.peopleEmptyNote.style.display = labels.length ? 'none' : 'block';
+    for (const label of labels) {
+      const li = document.createElement('li');
+      const count = model[label].length;
+      li.innerHTML = `<span class="name">${escapeHtml(label)}</span><span class="count">${count} swish${count === 1 ? '' : 'es'}</span>`;
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove';
+      removeBtn.textContent = 'Remove';
+      removeBtn.onclick = () => {
+        delete model[label];
+        saveModel();
+        renderPeopleList();
+      };
+      li.appendChild(removeBtn);
+      els.peopleList.appendChild(li);
+    }
+    updateActionButtons();
+  }
+
+  function renderTestResult(ranking) {
+    if (!ranking.length) {
+      els.testResult.innerHTML = '<p class="empty-note">Record at least two people\'s swishes first.</p>';
+      return;
+    }
+    const top = ranking[0];
+    let html = `<div class="guess-result"><div>My guess:</div><div class="guess-name">${escapeHtml(top.label)}</div></div>`;
+    html += '<ul class="ranking">';
+    for (const r of ranking) {
+      html += `<li><span>${escapeHtml(r.label)}</span><span>distance ${r.dist.toFixed(1)}</span></li>`;
+    }
+    html += '</ul>';
+    els.testResult.innerHTML = html;
+  }
+
+  function updateActionButtons() {
+    const hasEnoughPeople = Object.keys(model).length >= 2;
+    els.testBtn.disabled = !wand || !wand.connected || swishing || !hasEnoughPeople;
+    els.recordBtn.disabled = !wand || !wand.connected || swishing || !els.nameInput.value.trim();
+  }
+
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function setImuReadout(imu) {
+    els.imuReadout.classList.remove('hidden');
+    els.imuAx.textContent = imu.accelerometerX;
+    els.imuAy.textContent = imu.accelerometerY;
+    els.imuAz.textContent = imu.accelerometerZ;
+    els.imuGx.textContent = imu.gyroscopeX;
+    els.imuGy.textContent = imu.gyroscopeY;
+    els.imuGz.textContent = imu.gyroscopeZ;
+  }
+
+  function setStatus(state, text) {
+    els.statusPill.className = 'status-pill' + (state ? ' ' + state : '');
+    els.statusText.textContent = text;
+  }
+
+  // ===========================================================================
+  // Event wiring
+  // ===========================================================================
+  els.connectBtn.addEventListener('click', async () => {
+    const cardColorName = els.cardColorSelect.value || null;
+    const cardSerialRaw = els.cardSerialInput.value.trim();
+    if (cardSerialRaw && !/^\d{1,4}$/.test(cardSerialRaw)) {
+      setStatus('error', 'Invalid card serial');
+      log('Card serial must be a number from 0 to 9999 (or left blank).', true);
+      return;
+    }
+
+    els.connectBtn.disabled = true;
+    setStatus(null, 'Connecting…');
+    try {
+      wand = new DoubleMotorBLE({ onImu: setImuReadout, onLog: log });
+      await wand.connect(cardColorName, cardSerialRaw || null);
+      setStatus('connected', 'Wand connected');
+      log('Wand connected and ready.');
+      els.connectBtn.textContent = 'Reconnect';
+    } catch (e) {
+      setStatus('error', 'Connection failed');
+      log('Connection failed: ' + e.message, true);
+    } finally {
+      els.connectBtn.disabled = false;
+      updateActionButtons();
+    }
+  });
+
+  els.nameInput.addEventListener('input', updateActionButtons);
+
+  els.recordBtn.addEventListener('click', async () => {
+    const label = els.nameInput.value.trim();
+    if (!label) return;
+    swishing = true; updateActionButtons();
+    try {
+      const feats = await captureSwish(els.swishBar, els.swishLabel, `Swish now for ${label}!`);
+      if (!model[label]) model[label] = [];
+      model[label].push(feats);
+      await saveModel();
+      log(`Recorded swish #${model[label].length} for "${label}".`);
+      renderPeopleList();
+    } catch (e) {
+      log('Error recording swish: ' + e.message, true);
+    } finally {
+      swishing = false; updateActionButtons();
+    }
+  });
+
+  els.testBtn.addEventListener('click', async () => {
+    swishing = true; updateActionButtons();
+    try {
+      const feats = await captureSwish(els.testBar, els.testLabel, 'Swish the mystery gesture!');
+      const ranking = rankGuesses(feats);
+      renderTestResult(ranking);
+      log(`Test swish -> guessed "${ranking[0]?.label ?? '(nobody recorded yet)'}".`);
+    } catch (e) {
+      log('Error testing swish: ' + e.message, true);
+    } finally {
+      swishing = false; updateActionButtons();
+    }
+  });
+
+  els.resetBtn.addEventListener('click', async () => {
+    if (!confirm('Clear every recorded swish? This cannot be undone.')) return;
+    model = {};
+    await saveModel();
+    renderPeopleList();
+    els.testResult.innerHTML = '';
+    log('Cleared all recorded data.');
+  });
+
+  // ===========================================================================
+  // Boot
+  // ===========================================================================
+  (async function init() {
+    if (!navigator.bluetooth) {
+      els.unsupportedCard.classList.remove('hidden');
+      els.app.classList.add('hidden');
+      return;
+    }
+    els.unsupportedCard.classList.add('hidden');
+    els.app.classList.remove('hidden');
+
+    await loadState();
+    renderPeopleList();
+    updateActionButtons();
+    log('Ready. Connect your wand to begin.');
+  })();
+
+})();
+</script>
+</body>
+</html>

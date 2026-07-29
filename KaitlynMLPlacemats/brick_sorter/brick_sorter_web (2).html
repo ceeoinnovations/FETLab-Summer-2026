@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Brick Sorting Machine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FFF6E0;
+    --paper:#FFFFFF;
+    --ink:#4A4038;
+    --muted:#9C9284;
+    --line:#F3E4C4;
+    --red:#FF8A80;
+    --red-dark:#E56F66;
+    --yellow:#FFD966;
+    --yellow-dark:#F0C640;
+    --blue:#8EC9E8;
+    --blue-dark:#6FAED0;
+    --green:#9FE0B8;
+    --green-dark:#7CC99C;
+    --purple:#C6AEF0;
+    --pink:#FFB3D1;
+    --shadow: 0 2px 0 rgba(74,64,56,0.04), 0 10px 26px -14px rgba(74,64,56,0.18);
+    --radius: 18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 92% 4%, rgba(255,217,102,0.30), transparent 40%),
+      radial-gradient(circle at 4% 18%, rgba(198,174,240,0.25), transparent 38%),
+      radial-gradient(circle at 50% 100%, rgba(159,224,184,0.22), transparent 45%),
+      linear-gradient(160deg, #FFFBF2 0%, #FFF6EA 45%, #FFF1F0 100%);
+    color:var(--ink);
+    font-family:'Inter', system-ui, -apple-system, sans-serif;
+    min-height:100vh;
+    padding:28px 20px 80px;
+  }
+  h1,h2,h3{font-family:'Baloo 2', system-ui, sans-serif; margin:0;}
+  .wrap{max-width:1100px; margin:0 auto;}
+
+  /* rainbow brick strip signature element */
+  .brick-strip{
+    display:flex; height:12px; border-radius:8px; overflow:hidden; margin-bottom:22px;
+    box-shadow:0 2px 0 rgba(43,33,24,0.08);
+  }
+  .brick-strip i{flex:1; display:block;}
+  .brick-strip i:nth-child(6n+1){background:var(--red);}
+  .brick-strip i:nth-child(6n+2){background:var(--yellow);}
+  .brick-strip i:nth-child(6n+3){background:var(--green);}
+  .brick-strip i:nth-child(6n+4){background:var(--blue);}
+  .brick-strip i:nth-child(6n+5){background:var(--purple);}
+  .brick-strip i:nth-child(6n+6){background:var(--pink);}
+
+  /* ---------- header ---------- */
+  header{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:22px;}
+  .title-block h1{font-size:38px; font-weight:800; color:var(--ink); letter-spacing:-0.01em;}
+  .title-block h1 .accent{color:var(--red); -webkit-text-stroke:0; text-shadow: 3px 3px 0 rgba(255,196,0,0.55);}
+  .title-block p{margin:6px 0 0; color:var(--muted); font-size:15.5px; font-weight:500;}
+
+  /* ---------- connection bar ---------- */
+  .conn-bar{
+    display:flex; flex-direction:column; gap:14px;
+    background:var(--paper); border:3px solid var(--ink); border-radius:var(--radius);
+    padding:16px 18px; box-shadow:var(--shadow); margin-bottom:10px;
+  }
+  .conn-row{
+    display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  }
+  .conn-row + .conn-row{padding-top:14px; border-top:1.5px dashed var(--line);}
+  .conn-item{display:flex; align-items:center; gap:10px; min-width:180px;}
+  .conn-controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-left:auto;}
+  .card-fields{display:flex; gap:8px; flex-wrap:wrap;}
+  .card-fields select, .card-fields input{
+    padding:8px 10px; border:2px solid var(--line); border-radius:10px; font:inherit; font-size:13px;
+    background:#fff; color:var(--ink);
+  }
+  .card-fields select:focus, .card-fields input:focus{outline:none; border-color:var(--blue);}
+  .card-fields input{width:150px;}
+  .card-fields-hint{font-size:12px; color:var(--muted); margin:0 0 22px 2px; font-weight:500;}
+  .dot{width:12px; height:12px; border-radius:50%; background:#DCD2BC; flex:none; transition:background .2s;}
+  .dot.on{background:var(--green); box-shadow:0 0 0 4px rgba(46,204,113,0.22);}
+  .dot.off{background:#DCD2BC;}
+  .conn-text{display:flex; flex-direction:column; line-height:1.25;}
+  .conn-text b{font-size:14.5px;}
+  .conn-text span{font-size:12.5px; color:var(--muted);}
+  .btn{
+    appearance:none; border:none; cursor:pointer; font:inherit; font-weight:700;
+    padding:10px 18px; border-radius:999px; font-size:14px;
+    transition:transform .08s ease, box-shadow .08s ease, filter .15s ease; white-space:nowrap;
+  }
+  .btn-primary{background:var(--red); color:#fff; box-shadow:0 4px 0 var(--red-dark);}
+  .btn-primary:hover{filter:brightness(1.05);}
+  .btn-primary:active{transform:translateY(4px); box-shadow:0 0 0 var(--red-dark);}
+  .btn-secondary{background:var(--blue); color:#fff; box-shadow:0 4px 0 var(--blue-dark);}
+  .btn-secondary:hover{filter:brightness(1.05);}
+  .btn-secondary:active{transform:translateY(4px); box-shadow:0 0 0 var(--blue-dark);}
+  .btn-ghost{background:#fff; color:var(--ink); border:2px solid var(--line); box-shadow:0 3px 0 var(--line);}
+  .btn-ghost:hover{border-color:var(--ink);}
+  .btn-ghost:active{transform:translateY(3px); box-shadow:0 0 0 var(--line);}
+  .btn-yellow{background:var(--yellow); color:var(--ink); box-shadow:0 4px 0 var(--yellow-dark);}
+  .btn-yellow:hover{filter:brightness(1.03);}
+  .btn-yellow:active{transform:translateY(4px); box-shadow:0 0 0 var(--yellow-dark);}
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+  .btn-sm{padding:7px 14px; font-size:12.5px;}
+
+  /* ---------- banner ---------- */
+  .banner{
+    border-radius:var(--radius); padding:12px 16px; margin-bottom:18px; font-size:14px; font-weight:600;
+    display:none; align-items:flex-start; gap:10px; border:2px solid transparent;
+  }
+  .banner.show{display:flex;}
+  .banner.error{background:#FFE3E1; border-color:#FFB3AE; color:#A3221A;}
+  .banner.info{background:#E3F1FF; border-color:#B7DBFF; color:#0D4C8C;}
+  .banner.success{background:#E3FBEC; border-color:#AEEBC7; color:#136B36;}
+
+  /* ---------- layout grid ---------- */
+  .grid{display:grid; grid-template-columns: 1.05fr 1.4fr; gap:20px;}
+  @media (max-width: 860px){ .grid{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--paper); border:3px solid var(--ink); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:20px 20px 22px; position:relative; overflow:hidden;
+  }
+  .panel::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:7px;
+  }
+  .panel.readings::before{background:linear-gradient(90deg, var(--blue), var(--purple));}
+  .panel.bins::before{background:linear-gradient(90deg, var(--red), var(--yellow));}
+  .panel h2{font-size:20px; font-weight:800; margin-bottom:4px;}
+  .panel .sub{font-size:12.5px; color:var(--muted); margin-bottom:14px; font-weight:500;}
+
+  /* live readings */
+  .reading-row{display:flex; gap:16px; align-items:center; margin-bottom:14px;}
+  .swatch{
+    width:60px; height:60px; border-radius:14px; flex:none; border:3px solid var(--ink);
+    background:#ddd; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.5);
+  }
+  .reading-nums{font-size:13px; color:var(--muted); line-height:1.6;}
+  .reading-nums b{color:var(--ink); font-weight:700;}
+  .cam-wrap{position:relative; border-radius:14px; overflow:hidden; background:#111; aspect-ratio:4/3; border:3px solid var(--ink);}
+  .cam-wrap canvas{width:100%; height:100%; display:block;}
+  .cam-hint{
+    position:absolute; bottom:8px; left:8px; right:8px; background:rgba(0,0,0,0.6); color:#fff;
+    font-size:12px; font-weight:600; padding:7px 9px; border-radius:10px; text-align:center;
+  }
+  .shape-nums{display:flex; gap:14px; margin-top:10px; font-size:12.5px; color:var(--muted); flex-wrap:wrap;}
+  .shape-nums b{color:var(--ink);}
+
+  /* bins */
+  .bins-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:16px; margin-bottom:18px;}
+  .brick-card{
+    position:relative; background:var(--paper); border:3px solid var(--ink); border-radius:14px;
+    padding:20px 12px 12px; text-align:center; transition:transform .12s ease, box-shadow .12s ease;
+    box-shadow:0 3px 0 var(--ink);
+  }
+  .brick-card:hover{transform:translateY(-3px); box-shadow:0 6px 0 var(--ink);}
+  .brick-card .studs{position:absolute; top:-9px; left:0; right:0; display:flex; justify-content:center; gap:10px;}
+  .brick-card .studs i{
+    width:15px; height:15px; border-radius:50%; display:block; border:2px solid var(--ink);
+    box-shadow: inset -2px -2px 2px rgba(0,0,0,0.2), inset 2px 2px 2px rgba(255,255,255,0.5);
+  }
+  .brick-card .swatch-lg{width:100%; height:48px; border-radius:10px; margin-bottom:8px; border:2px solid var(--ink);}
+  .brick-card .label{font-weight:800; font-size:14px; word-break:break-word;}
+  .brick-card .shape-tag{font-size:11.5px; color:var(--muted); margin-top:2px; font-weight:600;}
+  .brick-card .del{
+    position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:50%;
+    border:2px solid var(--ink); background:#fff; color:var(--ink); font-size:13px; cursor:pointer; line-height:18px; font-weight:700;
+  }
+  .brick-card .del:hover{background:var(--red); color:#fff; border-color:var(--red-dark);}
+  .empty-note{color:var(--muted); font-size:13.5px; font-weight:600; padding:20px 0; text-align:center; border:2.5px dashed var(--line); border-radius:14px;}
+
+  /* sort result */
+  .result-banner{
+    display:none; border-radius:16px; padding:18px 20px; margin-top:8px;
+    background:linear-gradient(135deg, var(--yellow), #FFE066); border:3px solid var(--ink);
+    box-shadow:0 4px 0 var(--yellow-dark);
+  }
+  .result-banner.show{display:block;}
+  .result-banner .big{font-family:'Baloo 2'; font-size:24px; font-weight:800;}
+  .result-banner .dist{font-size:12.5px; color:#5c4a00; margin-top:2px; font-weight:600;}
+
+  /* modal */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(43,33,24,0.5); display:none;
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .modal-backdrop.show{display:flex;}
+  .modal{
+    background:var(--paper); border-radius:20px; width:100%; max-width:560px; max-height:90vh; overflow:auto;
+    padding:24px 24px 20px; box-shadow:0 30px 60px -20px rgba(0,0,0,0.4); border:3px solid var(--ink);
+  }
+  .modal h3{font-size:22px; margin-bottom:4px; font-weight:800;}
+  .modal .sub{color:var(--muted); font-size:13px; margin-bottom:16px; font-weight:500;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:12.5px; font-weight:700; margin-bottom:6px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em;}
+  .field input[type=text], .field input[type=number]{
+    width:100%; padding:10px 12px; border:2.5px solid var(--line); border-radius:10px; font:inherit; font-size:14px;
+  }
+  .field input:focus{outline:none; border-color:var(--blue);}
+  .capture-row{display:flex; gap:10px; align-items:center; margin-top:8px; flex-wrap:wrap;}
+  .capture-status{font-size:12.5px; color:var(--muted); font-weight:600;}
+  .capture-status.ok{color:var(--green-dark); font-weight:700;}
+  .modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
+  .close-x{position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; color:var(--muted); cursor:pointer;}
+  .modal{position:relative;}
+
+  .advanced-toggle{margin-top:16px; font-size:13px; color:var(--muted); cursor:pointer; user-select:none; font-weight:700;}
+  .advanced-panel{display:none; margin-top:10px; padding-top:12px; border-top:2px dashed var(--line);}
+  .advanced-panel.show{display:block;}
+  .weight-row{display:flex; gap:16px; align-items:center; margin-top:10px; flex-wrap:wrap;}
+  .weight-row label{font-size:12.5px; color:var(--muted); font-weight:600;}
+  .weight-row input[type=range]{width:120px; accent-color:var(--blue);}
+
+  footer{text-align:center; color:var(--muted); font-size:12px; margin-top:36px; font-weight:500;}
+  footer a{color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brick-strip"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+  <header>
+    <div class="title-block">
+      <h1>&#129521; Brick Sorting <span class="accent">Machine</span></h1>
+      <p>Color Sensor + camera, sorting bricks by color and shape &mdash; right in your browser!</p>
+    </div>
+  </header>
+
+  <div id="banner" class="banner"></div>
+
+  <div class="conn-bar">
+  <div class="conn-bar">
+    <div class="conn-row">
+      <div class="conn-item">
+        <span id="dot-color" class="dot off"></span>
+        <div class="conn-text"><b>Color Sensor</b><span id="color-status-text">Not connected</span></div>
+      </div>
+      <div class="conn-controls">
+        <div class="card-fields">
+          <select id="card-color">
+            <option value="">Any card color</option>
+            <option value="green">Green</option>
+            <option value="blue">Blue</option>
+            <option value="red">Red</option>
+            <option value="orange">Orange</option>
+            <option value="yellow">Yellow</option>
+            <option value="azure">Azure</option>
+            <option value="purple">Purple</option>
+            <option value="magenta">Magenta</option>
+          </select>
+          <input type="text" id="card-serial" placeholder="Card serial (optional)">
+        </div>
+        <button id="btn-connect-color" class="btn btn-primary">Connect Color Sensor</button>
+      </div>
+    </div>
+
+    <div class="conn-row">
+      <div class="conn-item">
+        <span id="dot-cam" class="dot off"></span>
+        <div class="conn-text"><b>Camera</b><span id="cam-status-text">Not connected</span></div>
+      </div>
+      <div class="conn-controls">
+        <button id="btn-connect-cam" class="btn btn-secondary">Connect Camera</button>
+      </div>
+    </div>
+  </div>
+  <div class="card-fields-hint">Optional: narrows the Bluetooth picker to a specific Color Sensor by its Connection Card. Leave blank to see all nearby devices.</div>
+
+  <div class="grid">
+    <!-- LEFT: live readings -->
+    <div class="panel readings">
+      <h2>&#127912; Live Readings</h2>
+      <div class="sub">Position a brick to see it read in real time.</div>
+
+      <div class="reading-row">
+        <div id="color-swatch" class="swatch"></div>
+        <div class="reading-nums">
+          <div><b id="color-name">&mdash;</b></div>
+          <div>RGB <span id="color-rgb">&mdash;</span></div>
+          <div>Hue <span id="color-hue">&mdash;</span> &middot; Reflection <span id="color-reflection">&mdash;</span></div>
+        </div>
+      </div>
+
+      <div class="cam-wrap">
+        <video id="video" autoplay muted playsinline style="display:none;"></video>
+        <canvas id="cam-canvas" width="320" height="240"></canvas>
+        <div id="cam-hint" class="cam-hint">Connect the camera to see a live preview</div>
+      </div>
+      <div class="shape-nums">
+        <div>Circularity <b id="shape-circ">&mdash;</b></div>
+        <div>Aspect <b id="shape-ar">&mdash;</b></div>
+        <div>Fill <b id="shape-ext">&mdash;</b></div>
+      </div>
+
+      <div class="advanced-toggle" id="advanced-toggle">&#9881; Advanced settings</div>
+      <div class="advanced-panel" id="advanced-panel">
+        <div class="weight-row">
+          <label>Color importance <span id="w-color-val">1.0</span></label>
+          <input type="range" id="w-color" min="0" max="2" step="0.1" value="1">
+        </div>
+        <div class="weight-row">
+          <label>Shape importance <span id="w-shape-val">1.0</span></label>
+          <input type="range" id="w-shape" min="0" max="2" step="0.1" value="1">
+        </div>
+        <div style="margin-top:14px;">
+          <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink); cursor:pointer;">
+            <input type="checkbox" id="use-arm"> I have a sorting arm (Single Motor)
+          </label>
+          <div id="arm-connect-row" style="display:none; margin-top:8px;">
+            <button id="btn-connect-arm" class="btn btn-yellow btn-sm">Connect Sorting Arm</button>
+            <span id="arm-status-text" style="font-size:12.5px; color:var(--muted); margin-left:8px;">Not connected</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: bins -->
+    <div class="panel bins">
+      <h2>&#129525; Bins</h2>
+      <div class="sub">Each bin remembers a color + shape fingerprint.</div>
+
+      <div id="bins-grid" class="bins-grid"></div>
+      <div id="bins-empty" class="empty-note">No bins trained yet &mdash; add your first one below.</div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button id="btn-train" class="btn btn-primary">+ Train New Bin</button>
+        <button id="btn-sort" class="btn btn-secondary">Sort a Brick</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Uses the LEGO Education CS &amp; AI Kit Color Sensor over Web Bluetooth (Chrome / Edge desktop only) &mdash;
+    BLE protocol via the open-source <a href="https://github.com/nathankellenicki/node-coral" target="_blank" rel="noopener">node-coral</a> library.
+  </footer>
+</div>
+
+<!-- Train modal -->
+<div id="train-modal" class="modal-backdrop">
+  <div class="modal">
+    <button class="close-x" id="train-close">&times;</button>
+    <h3>Train a New Bin</h3>
+    <div class="sub">Capture the color first, then the shape &mdash; one after another.</div>
+
+    <div class="field">
+      <label>Bin label</label>
+      <input type="text" id="train-label" placeholder="e.g. Red&ndash;Standard, Blue&ndash;Long">
+    </div>
+
+    <div class="field">
+      <label>Step 1 &middot; Color</label>
+      <div class="capture-row">
+        <button id="btn-capture-color" class="btn btn-ghost btn-sm">Capture Color</button>
+        <span id="capture-color-status" class="capture-status">Not captured yet</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Step 2 &middot; Shape</label>
+      <div class="capture-row">
+        <button id="btn-capture-shape" class="btn btn-ghost btn-sm" disabled>Capture Shape</button>
+        <span id="capture-shape-status" class="capture-status">Capture color first</span>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="train-cancel" class="btn btn-ghost">Cancel</button>
+      <button id="train-save" class="btn btn-primary">Save Bin</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sort modal -->
+<div id="sort-modal" class="modal-backdrop">
+  <div class="modal">
+    <button class="close-x" id="sort-close">&times;</button>
+    <h3>Sort a Brick</h3>
+    <div class="sub">Look at the color first, then the shape &mdash; one after another.</div>
+
+    <div class="field">
+      <label>Step 1 &middot; Color</label>
+      <div class="capture-row">
+        <button id="btn-sort-capture-color" class="btn btn-ghost btn-sm">Capture Color</button>
+        <span id="sort-capture-color-status" class="capture-status">Not captured yet</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Step 2 &middot; Shape</label>
+      <div class="capture-row">
+        <button id="btn-sort-capture-shape" class="btn btn-ghost btn-sm" disabled>Capture Shape</button>
+        <span id="sort-capture-shape-status" class="capture-status">Capture color first</span>
+      </div>
+    </div>
+
+    <div id="sort-result-banner" class="result-banner">
+      <div class="big" id="sort-result-label">&mdash;</div>
+      <div class="dist" id="sort-result-dist"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="sort-reset" class="btn btn-ghost">Sort Another</button>
+      <button id="btn-do-sort" class="btn btn-primary" disabled>Sort This Brick</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+/* node-coral (MIT License) - https://github.com/nathankellenicki/node-coral
+   Bundled Web Bluetooth build for the LEGO Education CS & AI Kit BLE protocol. */
+"use strict";var NodeCoral=(()=>{var Je=Object.create;var _=Object.defineProperty;var ze=Object.getOwnPropertyDescriptor;var Xe=Object.getOwnPropertyNames;var Ze=Object.getPrototypeOf,Qe=Object.prototype.hasOwnProperty;var O=(o=>typeof require<"u"?require:typeof Proxy<"u"?new Proxy(o,{get:(e,t)=>(typeof require<"u"?require:e)[t]}):o)(function(o){if(typeof require<"u")return require.apply(this,arguments);throw Error('Dynamic require of "'+o+'" is not supported')});var et=(o,e)=>{for(var t in e)_(o,t,{get:e[t],enumerable:!0})},Ce=(o,e,t,n)=>{if(e&&typeof e=="object"||typeof e=="function")for(let i of Xe(e))!Qe.call(o,i)&&i!==t&&_(o,i,{get:()=>e[i],enumerable:!(n=ze(e,i))||n.enumerable});return o};var tt=(o,e,t)=>(t=o!=null?Je(Ze(o)):{},Ce(e||!o||!o.__esModule?_(t,"default",{value:o,enumerable:!0}):t,o)),ot=o=>Ce(_({},"__esModule",{value:!0}),o);var Bt={};et(Bt,{ColorSensorDevice:()=>B,ControllerDevice:()=>I,Coral:()=>re,CoralDevice:()=>M,CoralDeviceKind:()=>P,DeviceTracker:()=>W,DoubleMotorDevice:()=>k,LegoColor:()=>de,LightPattern:()=>ue,MotionGesture:()=>ve,MotorDirection:()=>l,MotorEndState:()=>R,MotorGesture:()=>fe,MotorPort:()=>f,MotorState:()=>Me,MovementDirection:()=>v,SingleMotorDevice:()=>w,SoundPattern:()=>ce,TurnDirection:()=>L,WelfordStats:()=>A});var S=class{constructor(){this.listeners=new Map}on(e,t){let n=this.listeners.get(e)??[];return n.push({listener:t,once:!1}),this.listeners.set(e,n),this}addListener(e,t){return this.on(e,t)}once(e,t){let n=this.listeners.get(e)??[];return n.push({listener:t,once:!0}),this.listeners.set(e,n),this}off(e,t){let n=this.listeners.get(e);if(!n)return this;let i=n.filter(a=>a.listener!==t);return i.length===0?this.listeners.delete(e):this.listeners.set(e,i),this}removeListener(e,t){return this.off(e,t)}removeAllListeners(e){return e===void 0?this.listeners.clear():this.listeners.delete(e),this}emit(e,...t){let n=this.listeners.get(e);if(!n||n.length===0)return!1;let i=[];for(let a of n)a.listener(...t),a.once||i.push(a);return i.length===0?this.listeners.delete(e):this.listeners.set(e,i),!0}};var x="0000fd02-0000-1000-8000-00805f9b34fb",Y="0000fd02-0001-1000-8000-00805f9b34fb",j="0000fd02-0002-1000-8000-00805f9b34fb",Se="fd02";var se=[1,1,2],P=(i=>(i[i.SingleMotor=0]="SingleMotor",i[i.DoubleMotor=1]="DoubleMotor",i[i.ColorSensor=2]="ColorSensor",i[i.Controller=3]="Controller",i))(P||{});var ae=()=>{};function me(o){let e=typeof O=="function"?O:null;if(!e)return ae;try{let t=e("debug"),n=t.default??t;if(typeof n=="function")return n(o)}catch{return ae}return ae}var b=(r=>(r[r.InfoRequest=0]="InfoRequest",r[r.InfoResponse=1]="InfoResponse",r[r.ErrorReportRequest=2]="ErrorReportRequest",r[r.ErrorReportResponse=3]="ErrorReportResponse",r[r.BeginFirmwareUpdateRequest=20]="BeginFirmwareUpdateRequest",r[r.BeginFirmwareUpdateResponse=21]="BeginFirmwareUpdateResponse",r[r.DeviceUuidRequest=26]="DeviceUuidRequest",r[r.DeviceUuidResponse=27]="DeviceUuidResponse",r[r.ProgramFlowNotification=32]="ProgramFlowNotification",r[r.DeviceNotificationRequest=40]="DeviceNotificationRequest",r[r.DeviceNotificationResponse=41]="DeviceNotificationResponse",r[r.DeviceNotification=60]="DeviceNotification",r[r.LightColorCommand=110]="LightColorCommand",r[r.LightColorResult=111]="LightColorResult",r[r.BeepCommand=112]="BeepCommand",r[r.BeepResult=113]="BeepResult",r[r.StopSoundCommand=114]="StopSoundCommand",r[r.StopSoundResult=115]="StopSoundResult",r[r.MotorResetRelativePositionCommand=120]="MotorResetRelativePositionCommand",r[r.MotorResetRelativePositionResult=121]="MotorResetRelativePositionResult",r[r.MotorRunCommand=122]="MotorRunCommand",r[r.MotorRunResult=123]="MotorRunResult",r[r.MotorRunForDegreesCommand=124]="MotorRunForDegreesCommand",r[r.MotorRunForDegreesResult=125]="MotorRunForDegreesResult",r[r.MotorRunForTimeCommand=126]="MotorRunForTimeCommand",r[r.MotorRunForTimeResult=127]="MotorRunForTimeResult",r[r.MotorRunToAbsolutePositionCommand=128]="MotorRunToAbsolutePositionCommand",r[r.MotorRunToAbsolutePositionResult=129]="MotorRunToAbsolutePositionResult",r[r.MotorRunToRelativePositionCommand=130]="MotorRunToRelativePositionCommand",r[r.MotorRunToRelativePositionResult=131]="MotorRunToRelativePositionResult",r[r.MotorSetDutyCycleCommand=132]="MotorSetDutyCycleCommand",r[r.MotorSetDutyCycleResult=133]="MotorSetDutyCycleResult",r[r.MotorStopCommand=138]="MotorStopCommand",r[r.MotorStopResult=139]="MotorStopResult",r[r.MotorSetSpeedCommand=140]="MotorSetSpeedCommand",r[r.MotorSetSpeedResult=141]="MotorSetSpeedResult",r[r.MotorSetEndStateCommand=142]="MotorSetEndStateCommand",r[r.MotorSetEndStateResult=143]="MotorSetEndStateResult",r[r.MotorSetAccelerationCommand=144]="MotorSetAccelerationCommand",r[r.MotorSetAccelerationResult=145]="MotorSetAccelerationResult",r[r.MovementMoveCommand=150]="MovementMoveCommand",r[r.MovementMoveResult=151]="MovementMoveResult",r[r.MovementMoveForTimeCommand=152]="MovementMoveForTimeCommand",r[r.MovementMoveForTimeResult=153]="MovementMoveForTimeResult",r[r.MovementMoveForDegreesCommand=154]="MovementMoveForDegreesCommand",r[r.MovementMoveForDegreesResult=155]="MovementMoveForDegreesResult",r[r.MovementMoveTankCommand=156]="MovementMoveTankCommand",r[r.MovementMoveTankResult=157]="MovementMoveTankResult",r[r.MovementMoveTankForDegreesCommand=158]="MovementMoveTankForDegreesCommand",r[r.MovementMoveTankForDegreesResult=159]="MovementMoveTankForDegreesResult",r[r.MovementTurnForDegreesCommand=160]="MovementTurnForDegreesCommand",r[r.MovementTurnForDegreesResult=161]="MovementTurnForDegreesResult",r[r.MovementStopCommand=168]="MovementStopCommand",r[r.MovementStopResult=169]="MovementStopResult",r[r.MovementSetSpeedCommand=170]="MovementSetSpeedCommand",r[r.MovementSetSpeedResult=171]="MovementSetSpeedResult",r[r.MovementSetEndStateCommand=172]="MovementSetEndStateCommand",r[r.MovementSetEndStateResult=173]="MovementSetEndStateResult",r[r.MovementSetAccelerationCommand=174]="MovementSetAccelerationCommand",r[r.MovementSetAccelerationResult=175]="MovementSetAccelerationResult",r[r.MovementSetTurnSteeringCommand=176]="MovementSetTurnSteeringCommand",r[r.MovementSetTurnSteeringResult=177]="MovementSetTurnSteeringResult",r[r.ImuSetYawFaceCommand=190]="ImuSetYawFaceCommand",r[r.ImuSetYawFaceResult=191]="ImuSetYawFaceResult",r[r.ImuResetYawAxisCommand=192]="ImuResetYawAxisCommand",r[r.ImuResetYawAxisResult=193]="ImuResetYawAxisResult",r))(b||{});var ue=(s=>(s[s.Solid=0]="Solid",s[s.Breathe=1]="Breathe",s[s.Pulse=2]="Pulse",s[s.ShortBlink=3]="ShortBlink",s[s.LongBlink=4]="LongBlink",s[s.DoubleBlink=5]="DoubleBlink",s))(ue||{}),ce=(i=>(i[i.Single=0]="Single",i[i.Double=1]="Double",i[i.Triple=2]="Triple",i[i.UpMiddleDown=3]="UpMiddleDown",i))(ce||{});var de=(c=>(c[c.None=-1]="None",c[c.Black=0]="Black",c[c.Magenta=1]="Magenta",c[c.Purple=2]="Purple",c[c.Blue=3]="Blue",c[c.Azure=4]="Azure",c[c.Turquoise=5]="Turquoise",c[c.Green=6]="Green",c[c.Yellow=7]="Yellow",c[c.Orange=8]="Orange",c[c.Red=9]="Red",c[c.White=10]="White",c))(de||{}),le=(n=>(n[n.Completed=0]="Completed",n[n.Interrupted=1]="Interrupted",n[n.Nack=2]="Nack",n))(le||{}),pe=(t=>(t[t.Ack=0]="Ack",t[t.Nack=1]="Nack",t))(pe||{}),Me=(u=>(u[u.Ready=0]="Ready",u[u.Running=1]="Running",u[u.Stalled=2]="Stalled",u[u.CmdAborted=3]="CmdAborted",u[u.RegulationError=4]="RegulationError",u[u.MotorDisconnected=5]="MotorDisconnected",u[u.Holding=6]="Holding",u[u.DcRunning=7]="DcRunning",u[u.NotAllowedToRun=8]="NotAllowedToRun",u))(Me||{}),ve=(s=>(s[s.NoGesture=-1]="NoGesture",s[s.Tapped=0]="Tapped",s[s.DoubleTapped=1]="DoubleTapped",s[s.Collision=2]="Collision",s[s.Shake=3]="Shake",s[s.Freefall=4]="Freefall",s))(ve||{}),fe=(s=>(s[s.NoGesture=-1]="NoGesture",s[s.SlowClockwise=1]="SlowClockwise",s[s.FastClockwise=2]="FastClockwise",s[s.SlowCounterclockwise=3]="SlowCounterclockwise",s[s.FastCounterclockwise=4]="FastCounterclockwise",s[s.Wiggled=5]="Wiggled",s))(fe||{});var nt=[121,141,123,133,125,127,129,131,139,143,145],rt=[111,113,115,151,153,155,157,159,161,169,171,173,175,177,191,193],it=new Set(nt),st=new Set(rt),at={1:0,3:2,21:20,27:26,41:40},mt={111:110,113:112,115:114,121:120,123:122,125:124,127:126,129:128,131:130,133:132,139:138,141:140,143:142,145:144,151:150,153:152,155:154,157:156,159:158,161:160,169:168,171:170,173:172,175:174,177:176,191:190,193:192};function d(o,e){return e?{id:o,...e}:{id:o}}function Te(){return d(0)}function we(o){return d(40,{delay:o})}function K(o,e){return d(140,{motorBitMask:o,speed:e})}function $(o,e){return d(132,{motorBitMask:o,dutyCycle:e})}function G(o,e){return d(122,{motorBitMask:o,direction:e})}function H(o,e){return d(120,{motorBitMask:o,position:e})}function J(o,e,t){return d(124,{motorBitMask:o,degrees:e,direction:t})}function z(o,e,t){return d(126,{motorBitMask:o,time:e,direction:t})}function X(o,e,t){return d(128,{motorBitMask:o,position:e,direction:t})}function Z(o,e){return d(130,{motorBitMask:o,position:e})}function Q(o){return d(138,{motorBitMask:o})}function ee(o,e){return d(142,{motorBitMask:o,endState:e})}function te(o,e,t){return d(144,{motorBitMask:o,acceleration:e,deceleration:t})}function De(o){return d(150,{direction:o})}function xe(o,e){return d(152,{time:o,direction:e})}function Pe(o,e){return d(154,{degrees:o,direction:e})}function ke(o,e){return d(156,{speedLeft:o,speedRight:e})}function Ie(o,e,t){return d(158,{degrees:o,speedLeft:e,speedRight:t})}function Be(o,e){return d(160,{degrees:o,direction:e})}function Ae(){return d(168)}function Fe(o){return d(170,{speed:o})}function Ee(o){return d(172,{endState:o})}function Ue(o,e){return d(174,{acceleration:o,deceleration:e})}function Ne(o){return d(176,{steering:o})}var ut={uint8:yt,int8:Mt,uint16:pt,int16:vt,uint32:ht,int32:ft},ct={20:[{key:"productGroupDevice",type:"uint16"}],40:[{key:"delay",type:"uint16"}],110:[{key:"color",type:"int8"},{key:"pattern",type:"uint8"},{key:"intensity",type:"uint8"}],112:[{key:"pattern",type:"uint8"},{key:"frequency",type:"uint16"},{key:"repetitions",type:"uint8"}],140:[{key:"motorBitMask",type:"uint8"},{key:"speed",type:"int8"}],132:[{key:"motorBitMask",type:"uint8"},{key:"dutyCycle",type:"int16"}],122:[{key:"motorBitMask",type:"uint8"},{key:"direction",type:"uint8"}],120:[{key:"motorBitMask",type:"uint8"},{key:"position",type:"int32"}],124:[{key:"motorBitMask",type:"uint8"},{key:"degrees",type:"int32"},{key:"direction",type:"uint8"}],126:[{key:"motorBitMask",type:"uint8"},{key:"time",type:"uint32"},{key:"direction",type:"uint8"}],128:[{key:"motorBitMask",type:"uint8"},{key:"position",type:"uint16"},{key:"direction",type:"uint8"}],130:[{key:"motorBitMask",type:"uint8"},{key:"position",type:"int32"}],138:[{key:"motorBitMask",type:"uint8"}],142:[{key:"motorBitMask",type:"uint8"},{key:"endState",type:"int8"}],144:[{key:"motorBitMask",type:"uint8"},{key:"acceleration",type:"uint8"},{key:"deceleration",type:"uint8"}],150:[{key:"direction",type:"uint8"}],152:[{key:"time",type:"uint32"},{key:"direction",type:"uint8"}],154:[{key:"degrees",type:"int32"},{key:"direction",type:"uint8"}],156:[{key:"speedLeft",type:"int8"},{key:"speedRight",type:"int8"}],158:[{key:"degrees",type:"int32"},{key:"speedLeft",type:"int8"},{key:"speedRight",type:"int8"}],160:[{key:"degrees",type:"int32"},{key:"direction",type:"uint8"}],170:[{key:"speed",type:"int8"}],172:[{key:"endState",type:"int8"}],174:[{key:"acceleration",type:"uint8"},{key:"deceleration",type:"uint8"}],176:[{key:"steering",type:"int8"}],190:[{key:"yawFace",type:"uint8"}],192:[{key:"value",type:"int16"}]};function he(o){let e=[o.id],t=ct[o.id];if(t){let n=o;for(let i of t){let a=ut[i.type],s=n[i.key];if(s===void 0)throw new Error(`Missing field "${i.key}" for ${b[o.id]}.`);a(e,s)}}return Uint8Array.from(e)}function Le(o){if(!o.length)return null;let e=new V(o),t=e.readUInt8();if(it.has(t))return{id:t,motorBitMask:e.readUInt8(),status:e.readUInt8()};if(st.has(t))return{id:t,status:e.readUInt8()};switch(t){case 1:return{id:t,rpcMajor:e.readUInt8(),rpcMinor:e.readUInt8(),rpcBuild:e.readUInt16(),firmwareMajor:e.readUInt8(),firmwareMinor:e.readUInt8(),firmwareBuild:e.readUInt16(),bootloaderMajor:e.readUInt8(),bootloaderMinor:e.readUInt8(),bootloaderBuild:e.readUInt16(),maxPacketSize:e.readUInt16(),productGroupDevice:e.readUInt16()};case 3:{let n=e.readUInt8(),i=[];for(let a=0;a<n;a+=1)i.push(e.readUInt32());return{id:t,reportData:i}}case 21:return{id:t,status:e.readUInt8()};case 27:{let n=Array.from(e.readBytes(8));return{id:t,uuid:n}}case 32:return{id:t,action:e.readUInt8()};case 41:return{id:t,status:e.readUInt8()};case 60:return e.readUInt16(),{id:t,deviceData:lt(e.readRemaining())};default:return null}}var dt=new Set([0,1,3,4,10,12,15,16,17]);function be(o){return o!==void 0&&dt.has(o)}function lt(o){if(!o.length)return[];let e=new V(o),t=[];for(;e.remaining>0;)switch(e.readUInt8()){case 0:t.push({kind:"battery",level:e.readUInt8(),usbPowerState:e.readUInt8()}),e.remaining>=6&&!be(e.peekUInt8())&&t.push({kind:"joystick",leftPercent:e.readInt8(),rightPercent:e.readInt8(),leftAngle:e.readInt16(),rightAngle:e.readInt16()});break;case 4:t.push({kind:"button",pressed:e.readUInt8()===1});break;case 10:t.push({kind:"motor",motorBitMask:e.readUInt8(),state:e.readUInt8(),absolutePosition:e.readUInt16(),power:e.readInt16(),speed:e.readInt8(),position:e.readInt32()});break;case 12:t.push({kind:"color",color:e.readInt8(),reflection:e.readUInt8(),rawRed:e.readUInt16(),rawGreen:e.readUInt16(),rawBlue:e.readUInt16(),hue:e.readUInt16(),saturation:e.readUInt8(),value:e.readUInt8()});break;case 15:t.push({kind:"joystick",leftPercent:e.readInt8(),rightPercent:e.readInt8(),leftAngle:e.readInt16(),rightAngle:e.readInt16()});break;case 1:t.push({kind:"motion-sensor",orientation:e.readUInt8(),yawFace:e.readUInt8(),yaw:e.readInt16(),pitch:e.readInt16(),roll:e.readInt16(),accelerometerX:e.readInt16(),accelerometerY:e.readInt16(),accelerometerZ:e.readInt16(),gyroscopeX:e.readInt16(),gyroscopeY:e.readInt16(),gyroscopeZ:e.readInt16()});break;case 3:t.push({kind:"tag",color:e.readInt8(),id:e.readUInt16()});break;case 16:t.push({kind:"motion-gesture",gesture:e.readInt8()});break;case 17:t.push({kind:"motor-gesture",motorBitMask:e.readUInt8(),gesture:e.readInt8()});break;default:{for(;e.remaining>0&&!be(e.peekUInt8());)e.readUInt8();break}}return t}function qe(o){let e="motorBitMask"in o?String(o.motorBitMask):"";return`${b[o.id]}${e}`}function We(o){let e=at[o.id]??mt[o.id]??o.id,t="motorBitMask"in o?String(o.motorBitMask):"";return`${b[e]}${t}`}function oe(o){switch(o){case 512:return 0;case 513:return 1;case 514:return 2;case 515:return 3;default:return"unknown"}}var V=class{constructor(e){this.buffer=e;this.offset=0;this.view=new DataView(e.buffer,e.byteOffset,e.byteLength)}get remaining(){return Math.max(this.buffer.length-this.offset,0)}readUInt8(){let e=this.view.getUint8(this.offset);return this.offset+=1,e}readInt8(){let e=this.view.getInt8(this.offset);return this.offset+=1,e}readUInt16(){let e=this.view.getUint16(this.offset,!0);return this.offset+=2,e}readInt16(){let e=this.view.getInt16(this.offset,!0);return this.offset+=2,e}readInt32(){let e=this.view.getInt32(this.offset,!0);return this.offset+=4,e}readUInt32(){let e=this.view.getUint32(this.offset,!0);return this.offset+=4,e}readBytes(e){let t=this.buffer.slice(this.offset,this.offset+e);return this.offset+=e,t}readRemaining(){let e=this.buffer.slice(this.offset);return this.offset=this.buffer.length,e}peekUInt8(){return this.view.getUint8(this.offset)}skipRemaining(){this.offset=this.buffer.length}};function pt(o,e){let t=Math.max(0,Math.min(65535,e));o.push(t&255,t>>8&255)}function Mt(o,e){let t=Math.max(-128,Math.min(127,e|0));o.push(t&255)}function vt(o,e){let t=Math.max(-32768,Math.min(32767,e|0)),n=t<0?65536+t:t;o.push(n&255,n>>8&255)}function ft(o,e){let t=Math.max(-2147483648,Math.min(2147483647,e|0)),n=t<0?4294967296+t:t;o.push(n&255,n>>8&255,n>>16&255,n>>24&255)}function ht(o,e){let t=Math.max(0,Math.min(4294967295,e>>>0));o.push(t&255,t>>8&255,t>>16&255,t>>24&255)}function yt(o,e){let t=Math.max(0,Math.min(255,e|0));o.push(t&255)}var Rt=3e4,E=me("node-coral:connection"),Oe=me("node-coral:connection:raw"),F=class extends S{constructor(t){super();this.peripheral=t;this.pending=new Map;this.handleDataBound=t=>this.handleIncoming(t);this.handlePeripheralDisconnectBound=()=>this.handlePeripheralDisconnect();this.handleWebNotificationBound=t=>{let i=t.target?.value;if(!i)return;let a=new Uint8Array(i.buffer,i.byteOffset,i.byteLength);this.handleIncoming(a)};this.isOpen=!1}async open(){if(this.isOpen)return;if(ye(this.peripheral)){await this.openWeb(this.peripheral),this.isOpen=!0;return}await gt(this.peripheral);let t=[C(x)],n=[C(Y),C(j)],{characteristics:i}=await Ct(this.peripheral,t,n),a=i.find(({uuid:m})=>C(m)===C(Y)),s=i.find(({uuid:m})=>C(m)===C(j));if(!a||!s)throw new Error("Unable to locate Coral characteristics");this.peripheral.on?.("disconnect",this.handlePeripheralDisconnectBound),this.writeChar=a,this.notifyChar=s,this.notifyChar.on("data",this.handleDataBound),await St(this.notifyChar),this.isOpen=!0}async openWeb(t){if(!t.gatt)throw new Error("Bluetooth GATT is not available on this device");let i=await(t.gatt.connected?t.gatt:await t.gatt.connect()).getPrimaryService(x),a=await i.getCharacteristic(Y),s=await i.getCharacteristic(j);t.addEventListener?.("gattserverdisconnected",this.handlePeripheralDisconnectBound),this.writeChar=a,this.notifyChar=s,s.addEventListener("characteristicvaluechanged",this.handleWebNotificationBound),await s.startNotifications()}async send(t){if(!this.writeChar)throw new Error("Connection is not ready");E("sending command %s params=%o",U(t.id),N(t)),await _e(this.writeChar,he(t))}request(t,n=Rt){if(!this.writeChar)throw new Error("Connection is not ready");let i=qe(t),a=new Promise((s,m)=>{let p=setTimeout(()=>{this.rejectPending(i,new Error(`Request '${i}' timed out`))},n),u={resolve:ie=>{clearTimeout(p),s(ie)},reject:ie=>{clearTimeout(p),m(ie)},timeout:p},D=this.pending.get(i)??[];D.push(u),this.pending.set(i,D)});return E("sending command %s (%s) params=%o",U(t.id),i,N(t)),_e(this.writeChar,he(t)).catch(s=>{this.rejectPending(i,s instanceof Error?s:new Error(String(s)))}),a}async requestInfo(){return await this.request(Te())}async enableNotifications(t=50){await this.request(we(t))}disconnect(){ye(this.peripheral)?this.peripheral.removeEventListener?.("gattserverdisconnected",this.handlePeripheralDisconnectBound):this.peripheral.removeListener?.("disconnect",this.handlePeripheralDisconnectBound),this.notifyChar&&(je(this.notifyChar)?this.notifyChar.removeEventListener("characteristicvaluechanged",this.handleWebNotificationBound):this.notifyChar.removeListener("data",this.handleDataBound)),ye(this.peripheral)?this.peripheral.gatt?.disconnect():this.peripheral.disconnect(),this.isOpen=!1;for(let[t]of this.pending)this.rejectPending(t,new Error("Connection closed"));this.pending.clear(),this.emit("disconnect")}handleIncoming(t){Oe("rx %s",Ve(t));let n=Le(t);if(!n)return;let i=We(n),a=this.pending.get(i);if(a&&a.length>0){let s=a.shift();if(s)try{E("received response %s (%s) params=%o",U(n.id),i,N(n)),this.ensureSuccess(n),s.resolve(n)}catch(m){s.reject(m instanceof Error?m:new Error(String(m)))}a.length===0&&this.pending.delete(i);return}if(n.id===60){let s=n;E("received notification %s params=%o",U(n.id),N(s)),this.emit("notification",s.deviceData)}else E("received message %s params=%o",U(n.id),N(n)),this.emit("message",n)}handlePeripheralDisconnect(){this.disconnect()}rejectPending(t,n){let i=this.pending.get(t);if(i){for(;i.length;){let a=i.shift();a&&(clearTimeout(a.timeout),a.reject(n))}this.pending.delete(t)}}ensureSuccess(t){switch(t.id){case 21:case 41:if(t.status!==0)throw new Error(`Command ${b[t.id]} failed with status ${pe[t.status]??t.status}`);return;case 111:case 113:case 115:case 121:case 141:case 133:case 123:case 125:case 127:case 129:case 131:case 139:case 143:case 145:case 151:case 153:case 155:case 157:case 159:case 161:case 169:case 171:case 173:case 175:case 177:case 191:case 193:if(t.status!==0)throw new Error(`Command ${b[t.id]} failed with status ${le[t.status]??t.status}`);return;default:return}}};function Ye(o){let e=o.advertisement?.serviceUuids??[],t=C(x);return e.some(n=>C(n)===t||n.toLowerCase()===Se)}function ye(o){return typeof o.gatt<"u"}function je(o){return typeof o.startNotifications=="function"}async function gt(o){o.state!=="connected"&&await new Promise((e,t)=>{o.connect(n=>{n?t(n):e()})})}async function Ct(o,e,t){return new Promise((n,i)=>{o.discoverSomeServicesAndCharacteristics(e,t,(a,s,m)=>{a?i(a):n({services:s,characteristics:m})})})}async function St(o){await new Promise((e,t)=>{o.subscribe(n=>{n?t(n):e()})})}async function _e(o,e){if(Oe("tx %s",Ve(e)),je(o)){await o.writeValueWithoutResponse(e);return}let t=bt(e);await new Promise((n,i)=>{o.write(t,!0,a=>{a?i(a):n()})})}function C(o){return o.replace(/-/g,"").toLowerCase()}function bt(o){return typeof Buffer<"u"&&!(o instanceof Buffer)?Buffer.from(o):o}function Ve(o){return Array.from(o,e=>e.toString(16).padStart(2,"0")).join("")}function U(o){return b[o]??`${o}`}function N(o){let e={};for(let[t,n]of Object.entries(o))t!=="id"&&(e[t]=n);return e}var M=class extends S{constructor(t,n,i){super();this.connection=t;this.kind=n;this.info=i;this.handleNotificationBound=t=>this.handleNotification(t);this.handleConnectionDisconnectBound=()=>this.handleConnectionDisconnect();this.isConnected=!1;this.notificationsAttached=!1;this.lastPayloads=new Map}get connected(){return this.isConnected}async connect(){if(!this.isConnected)try{await this.connection.open();let t=await this.connection.requestInfo(),n=oe(t.productGroupDevice);if(n==="unknown"||n!==this.kind)throw new Error(`Discovered device reported unexpected type '${n}'`);this.info.firmwareVersion=[t.firmwareMajor,t.firmwareMinor,t.firmwareBuild],this.info.bootloaderVersion=[t.bootloaderMajor,t.bootloaderMinor,t.bootloaderBuild],this.checkFirmware(this.info.firmwareVersion),this.notificationsAttached||(this.connection.on("notification",this.handleNotificationBound),this.connection.on("disconnect",this.handleConnectionDisconnectBound),this.notificationsAttached=!0),await this.connection.enableNotifications(50),this.isConnected=!0}catch(t){throw this.notificationsAttached&&!this.isConnected&&(this.connection.off("notification",this.handleNotificationBound),this.connection.off("disconnect",this.handleConnectionDisconnectBound),this.notificationsAttached=!1),this.connection.disconnect(),t}}disconnect(){this.notificationsAttached&&(this.connection.off("notification",this.handleNotificationBound),this.connection.off("disconnect",this.handleConnectionDisconnectBound),this.notificationsAttached=!1),this.connection.disconnect(),this.isConnected=!1,this.lastPayloads.clear(),this.emit("disconnect")}sleep(t){return new Promise(n=>setTimeout(n,t))}checkFirmware(t){let[n,i,a]=t,[s,m,p]=se;if(n<s||n===s&&i<m||n===s&&i===m&&a<p){let u=t.join("."),D=se.join(".");throw new Error(`Device firmware ${u} is below the minimum required ${D}. Please update using the LEGO Education app.`)}}handleNotification(t){this.emit("raw-notification",t),t.forEach(n=>{if(this.hasPayloadChanged(n))switch(this.emit("notification",n),n.kind){case"battery":this.emit("battery",n);break;case"motor":this.emit("motor",n);break;case"motor-gesture":this.emit("motor-gesture",n);break;case"color":this.emit("color",n);break;case"joystick":this.emit("joystick",n);break;case"button":this.emit("button",n);break;case"motion-sensor":this.emit("motion",n);break;case"motion-gesture":this.emit("motion-gesture",n);break;case"tag":this.emit("tag",n);break;default:break}})}hasPayloadChanged(t){let n=this.getPayloadKey(t),i=this.lastPayloads.get(n);return i&&this.arePayloadsEqual(i,t)?!1:(this.lastPayloads.set(n,this.clonePayload(t)),!0)}getPayloadKey(t){switch(t.kind){case"motor":case"motor-gesture":return`${t.kind}:${t.motorBitMask}`;default:return t.kind}}arePayloadsEqual(t,n){if(t.kind!==n.kind)return!1;let i=Object.keys(t),a=Object.keys(n);return i.length!==a.length?!1:i.every(s=>Object.prototype.hasOwnProperty.call(n,s)&&t[s]===n[s])}clonePayload(t){return{...t}}handleConnectionDisconnect(){this.notificationsAttached&&(this.connection.off("notification",this.handleNotificationBound),this.connection.off("disconnect",this.handleConnectionDisconnectBound),this.notificationsAttached=!1),this.isConnected=!1,this.lastPayloads.clear(),this.emit("disconnect")}};var f={Left:"left",Right:"right",Both:"both"},l={Clockwise:"clockwise",Counterclockwise:"counterclockwise",Shortest:"shortest",Longest:"longest"},R={Default:"default",Coast:"coast",Brake:"brake",Hold:"hold",Continue:"continue",SmartCoast:"smartCoast",SmartBrake:"smartBrake"},v={Forward:"forward",Backward:"backward",Left:"left",Right:"right"},L={Left:"left",Right:"right"};function h(o){return Math.max(-100,Math.min(100,Math.round(o)))}function T(o){return Math.max(0,Math.min(255,Math.round(o)))}function y(o){switch(o){case f.Left:return 1;case f.Right:return 2;case f.Both:return 3;default:return 1}}function g(o){switch(o){case l.Counterclockwise:return 1;case l.Shortest:return 2;case l.Longest:return 3;case l.Clockwise:default:return 0}}function ne(o){switch(o){case v.Backward:return 1;case v.Left:return 2;case v.Right:return 3;case v.Forward:default:return 0}}function Ke(o){switch(o){case L.Right:return 3;case L.Left:default:return 2}}function q(o){switch(o){case R.Coast:return 0;case R.Brake:return 1;case R.Hold:return 2;case R.Continue:return 3;case R.SmartCoast:return 4;case R.SmartBrake:return 5;case R.Default:default:return-1}}var w=class extends M{async setMotorSpeed(e){await this.connection.send(K(1,h(e)))}async setMotorPower(e){await this.connection.send($(1,h(e)))}async startMotorAtPower(e){await this.setMotorPower(e)}async startMotor(e=l.Clockwise){await this.connection.send(G(1,g(e)))}async runMotorForDegrees(e,t=l.Clockwise){await this.connection.request(J(1,e,g(t)))}async runMotorForTime(e,t=l.Clockwise){await this.connection.request(z(1,e,g(t)))}async runMotorToAbsolutePosition(e,t=l.Shortest){await this.connection.request(X(1,e,g(t)))}async runMotorToRelativePosition(e){await this.connection.request(Z(1,e))}async resetMotorRelativePosition(e=0){await this.connection.send(H(1,e))}async setMotorRelativePosition(e=0){await this.resetMotorRelativePosition(e)}async stopMotor(){await this.connection.send(Q(1))}async setMotorEndState(e){await this.connection.send(ee(1,q(e)))}async setMotorAcceleration(e,t=e){await this.connection.send(te(1,T(e),T(t)))}};var k=class extends M{async setMotorSpeed(e,t){await this.connection.send(K(y(e),h(t)))}async setMotorSpeeds(e,t){await this.setMotorSpeed(f.Left,e),await this.setMotorSpeed(f.Right,t)}async setMotorPower(e,t){await this.connection.send($(y(e),h(t)))}async setMotorPowers(e,t){await this.setMotorPower(f.Left,e),await this.setMotorPower(f.Right,t)}async startMotorAtPower(e,t){await this.setMotorPower(e,t)}async startMotor(e,t=l.Clockwise){await this.connection.send(G(y(e),g(t)))}async runMotorForDegrees(e,t,n=l.Clockwise){await this.connection.request(J(y(e),t,g(n)))}async runMotorForTime(e,t,n=l.Clockwise){await this.connection.request(z(y(e),t,g(n)))}async runMotorToAbsolutePosition(e,t,n=l.Shortest){await this.connection.request(X(y(e),t,g(n)))}async runMotorToRelativePosition(e,t){await this.connection.request(Z(y(e),t))}async resetMotorRelativePosition(e,t=0){await this.connection.send(H(y(e),t))}async setMotorRelativePosition(e,t=0){await this.resetMotorRelativePosition(e,t)}async stopMotor(e=f.Both){await this.connection.send(Q(y(e)))}async setMotorEndState(e,t){await this.connection.send(ee(y(e),q(t)))}async setMotorAcceleration(e,t,n=t){await this.connection.send(te(y(e),T(t),T(n)))}async startMoving(e=v.Forward){await this.connection.send(De(ne(e)))}async stopMoving(){await this.connection.send(Ae())}async moveForTime(e,t=v.Forward){await this.connection.request(xe(e,ne(t)))}async moveForDegrees(e,t=v.Forward){await this.connection.request(Pe(e,ne(t)))}async moveForDistance(e,t=v.Forward){await this.moveForDegrees(e,t)}async moveAtDualSpeed(e,t){await this.connection.send(ke(h(e),h(t)))}async moveAtDualSpeedForDegrees(e,t,n){await this.connection.request(Ie(n,h(e),h(t)))}async setMovementSpeed(e){await this.connection.send(Fe(h(e)))}async setMovementEndState(e){await this.connection.send(Ee(q(e)))}async setMoveEndState(e){await this.setMovementEndState(e)}async setMovementAcceleration(e,t=e){await this.connection.send(Ue(T(e),T(t)))}async setMoveAcceleration(e,t=e){await this.setMovementAcceleration(e,t)}async setMovementSteering(e){await this.connection.send(Ne(h(e)))}async turn(e,t){await this.connection.request(Be(e,Ke(t)))}};var I=class extends M{handleNotification(e){super.handleNotification(e)}};var B=class extends M{handleNotification(e){super.handleNotification(e)}};function ge(){return globalThis.navigator?.bluetooth}var re=class extends S{constructor(t){super();this.scanning=!1;this.discovered=new Set;this.hubs=new Map;this.handleDiscoverBound=t=>{this.handleDiscover(t)};this.adapter=t}static get isWebBluetooth(){return!!ge()}async scan(){if(this.scanning)return;this.scanning=!0;let t=ge();if(t){try{await this.scanWeb(t)}finally{this.scanning=!1}return}let n=await this.getAdapter();n.on("discover",this.handleDiscoverBound);try{await this.startScanning(n)}catch(i){throw n.removeListener("discover",this.handleDiscoverBound),this.scanning=!1,i}}stop(){if(this.scanning&&(this.scanning=!1,this.discovered.clear(),this.hubs.clear(),this.adapter)){this.adapter.removeListener("discover",this.handleDiscoverBound);try{this.adapter.stopScanning()}catch{}}}async startScanning(t){if(t.state==="poweredOn"){await He(t);return}await new Promise((n,i)=>{let a=()=>{t.removeListener("stateChange",s)},s=m=>{m==="poweredOn"?(a(),He(t).then(n).catch(i)):(m==="unauthorized"||m==="unsupported")&&(a(),i(new Error(`Bluetooth adapter is ${m}`)))};t.on("stateChange",s)})}handleDiscover(t){if(!Ye(t)||this.discovered.has(t.id))return;let n=Dt(t);if(!n)return;let i=new F(t),a={name:t.advertisement?.localName,firmwareVersion:[0,0,0],bootloaderVersion:[0,0,0],uuid:t.uuid,...n.color!==void 0?{color:n.color}:{},...n.tag!==void 0?{tag:n.tag}:{}},s=$e(n.kind,i,a);this.discovered.add(t.id),this.hubs.set(a.uuid,s),t.once("disconnect",()=>{this.discovered.delete(t.id),this.hubs.delete(a.uuid)}),this.emit("discover",s)}async scanWeb(t){try{let n=await t.requestDevice({filters:[{services:[x]}],optionalServices:[x]});if(this.discovered.has(n.id))return;let i=await this.identifyWebDevice(n),a=i?.kind??0,s=i?.info??{...n.name?{name:n.name}:{},firmwareVersion:[0,0,0],bootloaderVersion:[0,0,0],uuid:n.id},m=i?.connection??new F(n),p=$e(a,m,s);this.discovered.add(n.id),this.hubs.set(s.uuid,p),n.addEventListener?.("gattserverdisconnected",()=>{this.discovered.delete(n.id),this.hubs.delete(s.uuid)}),this.emit("discover",p)}catch(n){if(n?.name==="NotFoundError")return;throw n}}async identifyWebDevice(t){let n=new F(t);try{await n.open();let i=await n.requestInfo(),a=oe(i.productGroupDevice);if(a==="unknown")return n.disconnect(),null;let s={...t.name?{name:t.name}:{},firmwareVersion:[i.firmwareMajor,i.firmwareMinor,i.firmwareBuild],bootloaderVersion:[i.bootloaderMajor,i.bootloaderMinor,i.bootloaderBuild],uuid:t.id};return{kind:a,info:s,connection:n}}catch(i){throw n.disconnect(),i}}async getAdapter(){if(this.adapter)return this.adapter;let t=await import("@stoprocent/noble"),n=t.default??t;return this.adapter=n,n}getDevice(t){return this.hubs.get(t)}getDevices(){return Array.from(this.hubs.values())}};function $e(o,e,t){switch(o){case 0:return new w(e,o,t);case 1:return new k(e,o,t);case 2:return new B(e,o,t);case 3:return new I(e,o,t);default:return new w(e,0,t)}}var Ge=919,wt={0:0,1:1,2:2,3:3};function Dt(o){let e=o.advertisement?.manufacturerData;if(!e||e.length<4)return null;let t=xt(e,0),n=Pt(e,0);if(t!==Ge&&n!==Ge)return null;let i=e.subarray(2);if(i.length<2||i[0]!==2)return null;let a=i[1];if(a===void 0)return null;let s=a&127,m=wt[s];if(m===void 0)return null;let p={kind:m};i.length>=3&&(p.color=kt(i,2));let u=i[3],D=i[4];return u!==void 0&&D!==void 0&&(p.tag=u|D<<8),p}async function He(o){await new Promise((e,t)=>{o.startScanning(["fd02"],!1,n=>{n?t(n):e()})})}function xt(o,e){let t=o[e]??0,n=o[e+1]??0;return t|n<<8}function Pt(o,e){let t=o[e]??0,n=o[e+1]??0;return t<<8|n}function kt(o,e){let t=o[e]??0;return t>127?t-256:t}var A=class{constructor(){this.n=0;this.mean=0;this.min=1/0;this.max=-1/0;this.m2=0}push(e){this.n++;let t=e-this.mean;this.mean+=t/this.n;let n=e-this.mean;this.m2+=t*n,e<this.min&&(this.min=e),e>this.max&&(this.max=e)}get variance(){return this.n<2?0:this.m2/(this.n-1)}get stddev(){return Math.sqrt(this.variance)}reset(){this.n=0,this.mean=0,this.m2=0,this.min=1/0,this.max=-1/0}};var It=["battery","motor","motor-gesture","color","joystick","button","motion","motion-gesture","tag"],W=class{constructor(e){this.device=e;this.sensors=new Map;this.stopped=!1;this.deviceKind=P[e.kind]??`unknown(${e.kind})`,this.startTime=performance.now(),this.handleRawBound=t=>this.handleRawNotification(t),e.on("raw-notification",this.handleRawBound),this.sensorHandlers=It.map(t=>{let n=i=>this.handleSensorEvent(i);return e.on(t,n),{event:t,handler:n}})}snapshot(){let e=(performance.now()-this.startTime)/1e3,t=[];for(let[n,i]of this.sensors){let a=n.includes(":")?n.split(":")[0]:n,s=e>0?i.rawCount/e:0,m=i.stats.mean>0?i.stats.stddev/i.stats.mean:0,p=i.rawCount>0?(i.rawCount-i.dedupCount)/i.rawCount*100:0;t.push({sensorKey:n,sensorKind:a,rate:s,rawCount:i.rawCount,dedupCount:i.dedupCount,meanInterval:i.stats.mean,stddev:i.stats.stddev,minInterval:Number.isFinite(i.stats.min)?i.stats.min:0,maxInterval:Number.isFinite(i.stats.max)?i.stats.max:0,jitterRatio:m,dropRate:p})}return t}stop(){if(!this.stopped){this.stopped=!0,this.device.off("raw-notification",this.handleRawBound);for(let{event:e,handler:t}of this.sensorHandlers)this.device.off(e,t)}}getSensorKey(e){switch(e.kind){case"motor":case"motor-gesture":return`${e.kind}:${e.motorBitMask}`;default:return e.kind}}getSensorState(e){let t=this.sensors.get(e);return t||(t={stats:new A,rawCount:0,dedupCount:0,lastRawTime:null},this.sensors.set(e,t)),t}handleRawNotification(e){let t=performance.now();for(let n of e){let i=this.getSensorKey(n),a=this.getSensorState(i);a.rawCount++,a.lastRawTime!==null&&a.stats.push(t-a.lastRawTime),a.lastRawTime=t}}handleSensorEvent(e){let t=this.getSensorKey(e),n=this.getSensorState(t);n.dedupCount++}};return ot(Bt);})();
+//# sourceMappingURL=coral.min.js.map
+
+</script>
+<script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+<script>
+/* ============================================================
+   Brick Sorting Machine — application logic
+   Uses NodeCoral (embedded above) for the LEGO Color Sensor
+   over Web Bluetooth, and OpenCV.js for webcam shape detection.
+   ============================================================ */
+
+// ---------- constants ----------
+const MIN_CONTOUR_AREA = 1200;      // ignore specks smaller than this (px^2) at detection resolution
+const DETECT_WIDTH = 320;           // downscaled detection resolution
+const DETECT_HEIGHT = 240;
+const COLOR_HISTORY_LEN = 15;       // rolling buffer of recent color readings
+const SHAPE_HISTORY_LEN = 10;       // rolling buffer of recent shape readings
+const SHAPE_DETECT_INTERVAL_MS = 150;
+const LEGO_COLOR_HEX = {
+  '-1': '#B9B2A0', 0: '#232323', 1: '#EC0089', 2: '#7A1FA2', 3: '#0058A8',
+  4: '#2DABE2', 5: '#00A99D', 6: '#00A651', 7: '#FFD500', 8: '#F58220',
+  9: '#D2232A', 10: '#F4F1E8'
+};
+const LEGO_COLOR_NAME = {
+  '-1': 'No color', 0: 'Black', 1: 'Magenta', 2: 'Purple', 3: 'Blue',
+  4: 'Azure', 5: 'Turquoise', 6: 'Green', 7: 'Yellow', 8: 'Orange',
+  9: 'Red', 10: 'White'
+};
+
+// ---------- Connection Card BLE filtering (card color + serial) ----------
+// The browser's Bluetooth picker doesn't expose card color/serial directly,
+// but LEGO's advertisement data encodes both, so we can use a manufacturerData
+// filter to narrow the picker to a specific card. This bypasses NodeCoral's
+// own scan() (which only filters by service), so a small subset of the wire
+// protocol is re-implemented here (adapted from node-coral, MIT licensed)
+// just for the info handshake + color notifications.
+const CORAL_SERVICE_UUID = '0000fd02-0000-1000-8000-00805f9b34fb';
+const CORAL_WRITE_CHAR_UUID = '0000fd02-0001-1000-8000-00805f9b34fb';
+const CORAL_NOTIFY_CHAR_UUID = '0000fd02-0002-1000-8000-00805f9b34fb';
+const LEGO_COMPANY_IDENTIFIER = 0x0397;
+const PRODUCT_GROUP_COLOR_SENSOR = 514;
+const CARD_COLOR_VALUES = { green: 6, blue: 3, red: 9, orange: 8, yellow: 7, azure: 4, purple: 2, magenta: 1 };
+const DEVICE_MSG_TYPES = new Set([0, 1, 3, 4, 10, 12, 15, 16, 17]);
+
+class MiniReader {
+  constructor(buf) { this.buf = buf; this.offset = 0; this.view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength); }
+  get remaining() { return Math.max(this.buf.length - this.offset, 0); }
+  u8() { const v = this.view.getUint8(this.offset); this.offset += 1; return v; }
+  i8() { const v = this.view.getInt8(this.offset); this.offset += 1; return v; }
+  u16() { const v = this.view.getUint16(this.offset, true); this.offset += 2; return v; }
+  i16() { const v = this.view.getInt16(this.offset, true); this.offset += 2; return v; }
+  i32() { const v = this.view.getInt32(this.offset, true); this.offset += 4; return v; }
+  peek() { return this.view.getUint8(this.offset); }
+}
+
+function decodeDeviceData(buf) {
+  const r = new MiniReader(buf);
+  const events = [];
+  while (r.remaining > 0) {
+    const type = r.u8();
+    switch (type) {
+      case 0: // InfoHubNotification
+        events.push({ kind: 'battery', level: r.u8(), usbPowerState: r.u8() });
+        if (r.remaining >= 6 && !DEVICE_MSG_TYPES.has(r.peek())) {
+          events.push({ kind: 'joystick', leftPercent: r.i8(), rightPercent: r.i8(), leftAngle: r.i16(), rightAngle: r.i16() });
+        }
+        break;
+      case 4:
+        events.push({ kind: 'button', pressed: r.u8() === 1 });
+        break;
+      case 10:
+        events.push({ kind: 'motor', motorBitMask: r.u8(), state: r.u8(), absolutePosition: r.u16(), power: r.i16(), speed: r.i8(), position: r.i32() });
+        break;
+      case 12: // ColorSensorNotification
+        events.push({ kind: 'color', color: r.i8(), reflection: r.u8(), rawRed: r.u16(), rawGreen: r.u16(), rawBlue: r.u16(), hue: r.u16(), saturation: r.u8(), value: r.u8() });
+        break;
+      case 15:
+        events.push({ kind: 'joystick', leftPercent: r.i8(), rightPercent: r.i8(), leftAngle: r.i16(), rightAngle: r.i16() });
+        break;
+      case 1:
+        events.push({
+          kind: 'motion-sensor', orientation: r.u8(), yawFace: r.u8(), yaw: r.i16(), pitch: r.i16(), roll: r.i16(),
+          accelerometerX: r.i16(), accelerometerY: r.i16(), accelerometerZ: r.i16(), gyroscopeX: r.i16(), gyroscopeY: r.i16(), gyroscopeZ: r.i16()
+        });
+        break;
+      case 3:
+        events.push({ kind: 'tag', color: r.i8(), id: r.u16() });
+        break;
+      case 16:
+        events.push({ kind: 'motion-gesture', gesture: r.i8() });
+        break;
+      case 17:
+        events.push({ kind: 'motor-gesture', motorBitMask: r.u8(), gesture: r.i8() });
+        break;
+      default:
+        while (r.remaining > 0 && !DEVICE_MSG_TYPES.has(r.peek())) r.u8();
+        break;
+    }
+  }
+  return events;
+}
+
+function buildManufacturerFilter(cardColorName, cardSerial) {
+  const dataPrefix = new Uint8Array(5);
+  const mask = new Uint8Array(5);
+  dataPrefix[0] = 0x02; mask[0] = 0xff;   // constant marker
+  dataPrefix[1] = 2; mask[1] = 0x7f;      // hardware kind = Color Sensor, ignore reserved bit
+  if (cardColorName && CARD_COLOR_VALUES[cardColorName] !== undefined) {
+    dataPrefix[2] = CARD_COLOR_VALUES[cardColorName] & 0xff;
+    mask[2] = 0xff;
+  }
+  if (cardSerial !== '' && cardSerial !== null && !Number.isNaN(Number(cardSerial))) {
+    const n = Number(cardSerial) & 0xffff;
+    dataPrefix[3] = n & 0xff; mask[3] = 0xff;
+    dataPrefix[4] = (n >> 8) & 0xff; mask[4] = 0xff;
+  }
+  return { companyIdentifier: LEGO_COMPANY_IDENTIFIER, dataPrefix, mask };
+}
+
+async function writeChar(char, bytes) {
+  if (char.writeValueWithoutResponse) {
+    await char.writeValueWithoutResponse(bytes);
+  } else {
+    await char.writeValue(bytes);
+  }
+}
+
+async function connectColorSensorWithCard(cardColorName, cardSerial) {
+  const filter = { services: [CORAL_SERVICE_UUID], manufacturerData: [buildManufacturerFilter(cardColorName, cardSerial)] };
+  let device;
+  try {
+    device = await navigator.bluetooth.requestDevice({ filters: [filter], optionalServices: [CORAL_SERVICE_UUID] });
+  } catch (err) {
+    if (err && err.name === 'NotFoundError') {
+      throw new Error('No Color Sensor matched that card. Double-check the color/serial, or clear them to see all nearby devices.');
+    }
+    throw err;
+  }
+
+  const server = await device.gatt.connect();
+  const service = await server.getPrimaryService(CORAL_SERVICE_UUID);
+  const wChar = await service.getCharacteristic(CORAL_WRITE_CHAR_UUID);
+  const nChar = await service.getCharacteristic(CORAL_NOTIFY_CHAR_UUID);
+  await nChar.startNotifications();
+
+  let resolveInfo;
+  const infoPromise = new Promise((resolve) => { resolveInfo = resolve; });
+
+  const onNotify = (event) => {
+    const value = event.target.value;
+    const data = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    if (data.length === 0) return;
+    const id = data[0];
+    if (id === 1) { // InfoResponse
+      const r = new MiniReader(data.slice(1));
+      r.u8(); r.u8(); r.u16();               // rpc version
+      r.u8(); r.u8(); r.u16();               // firmware version
+      r.u8(); r.u8(); r.u16();               // bootloader version
+      r.u16();                               // maxPacketSize
+      const productGroupDevice = r.u16();
+      resolveInfo({ productGroupDevice });
+    } else if (id === 60) { // DeviceNotification
+      const events = decodeDeviceData(data.slice(3)); // skip id + 2 reserved bytes
+      for (const ev of events) {
+        if (ev.kind === 'color') onColorReading(ev);
+      }
+    }
+  };
+  nChar.addEventListener('characteristicvaluechanged', onNotify);
+
+  await writeChar(wChar, Uint8Array.from([0])); // INFO_REQUEST
+  const info = await Promise.race([
+    infoPromise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Sensor did not respond in time.')), 8000))
+  ]);
+
+  if (info.productGroupDevice !== PRODUCT_GROUP_COLOR_SENSOR) {
+    nChar.removeEventListener('characteristicvaluechanged', onNotify);
+    device.gatt.disconnect();
+    throw new Error('That device was not a Color Sensor.');
+  }
+
+  const delay = 50;
+  await writeChar(wChar, Uint8Array.from([40, delay & 0xff, (delay >> 8) & 0xff])); // DEVICE_NOTIFICATION_REQUEST
+
+  device.addEventListener('gattserverdisconnected', () => {
+    colorSensorDevice = null;
+    setColorConnected(false);
+    showBanner('Color Sensor disconnected.', 'error');
+  });
+
+  colorSensorDevice = { disconnect: () => device.gatt.disconnect() };
+  return device;
+}
+
+// ---------- state ----------
+let bins = loadBins();               // [{id,label,color:{r,g,b},colorName,shape:{circularity,aspect,extent},armPosition}]
+let colorSensorDevice = null;
+let armMotorDevice = null;
+let colorHistory = [];               // rolling buffer of {r,g,b} normalized readings
+let latestColorRaw = null;           // last raw payload from sensor
+let shapeHistory = [];               // rolling buffer of {circularity,aspect,extent}
+let latestShapeFeatures = null;
+let cvReady = false;
+let videoEl, camCanvas, camCtx;
+let camStream = null;
+let shapeDetectTimer = null;
+let capturedColorForTraining = null;
+let capturedShapeForTraining = null;
+
+const coral = new NodeCoral.Coral();
+
+// ---------- persistence ----------
+function loadBins() {
+  try {
+    const raw = localStorage.getItem('brickSorterBins');
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+function saveBins() {
+  localStorage.setItem('brickSorterBins', JSON.stringify(bins));
+}
+
+// ---------- banner ----------
+function showBanner(message, kind = 'info') {
+  const el = document.getElementById('banner');
+  el.textContent = message;
+  el.className = `banner show ${kind}`;
+}
+function hideBanner() {
+  document.getElementById('banner').className = 'banner';
+}
+
+// ---------- math helpers ----------
+function normalizeRGB(r, g, b) {
+  const total = r + g + b;
+  if (total === 0) return { r: 0, g: 0, b: 0 };
+  return { r: r / total, g: g / total, b: b / total };
+}
+function euclid3(a, b, keys) {
+  let sum = 0;
+  for (const k of keys) {
+    const d = (a[k] ?? 0) - (b[k] ?? 0);
+    sum += d * d;
+  }
+  return Math.sqrt(sum);
+}
+function average(arr, keys) {
+  const out = {};
+  for (const k of keys) {
+    out[k] = arr.reduce((s, item) => s + item[k], 0) / arr.length;
+  }
+  return out;
+}
+
+// ============================================================
+// COLOR SENSOR (Web Bluetooth via NodeCoral)
+// ============================================================
+function connectColorSensor() {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const onDiscover = async (device) => {
+      if (settled) return;
+      try {
+        await device.connect();
+        if (!(device instanceof NodeCoral.ColorSensorDevice)) {
+          settled = true;
+          device.disconnect();
+          reject(new Error('That was not the Color Sensor. Try again and pick the Color Sensor from the list (move it close to your computer to make it easier to spot).'));
+          return;
+        }
+        settled = true;
+        colorSensorDevice = device;
+        device.on('color', onColorReading);
+        device.on('disconnect', () => {
+          colorSensorDevice = null;
+          setColorConnected(false);
+          showBanner('Color Sensor disconnected.', 'error');
+        });
+        resolve(device);
+      } catch (err) {
+        settled = true;
+        reject(err);
+      }
+    };
+    coral.on('discover', onDiscover);
+    coral.scan().then(() => {
+      if (!settled) { settled = true; reject(new Error('No device selected.')); }
+    }).catch((err) => {
+      if (!settled) { settled = true; reject(err); }
+    });
+  });
+}
+
+function onColorReading(payload) {
+  latestColorRaw = payload;
+  const norm = normalizeRGB(payload.rawRed, payload.rawGreen, payload.rawBlue);
+  colorHistory.push(norm);
+  if (colorHistory.length > COLOR_HISTORY_LEN) colorHistory.shift();
+  updateColorReadoutUI(payload, norm);
+}
+
+function updateColorReadoutUI(payload, norm) {
+  const hex = LEGO_COLOR_HEX[String(payload.color)] ?? '#ccc';
+  document.getElementById('color-swatch').style.background = hex;
+  document.getElementById('color-name').textContent = LEGO_COLOR_NAME[String(payload.color)] ?? 'Unknown';
+  document.getElementById('color-rgb').textContent = `${payload.rawRed}, ${payload.rawGreen}, ${payload.rawBlue}`;
+  document.getElementById('color-hue').textContent = payload.hue;
+  document.getElementById('color-reflection').textContent = payload.reflection;
+}
+
+function setColorConnected(connected) {
+  document.getElementById('dot-color').className = 'dot ' + (connected ? 'on' : 'off');
+  document.getElementById('color-status-text').textContent = connected ? 'Connected' : 'Not connected';
+  document.getElementById('btn-connect-color').textContent = connected ? 'Reconnect' : 'Connect Color Sensor';
+}
+
+// ---------- optional sorting arm ----------
+function connectSortingArm() {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const onDiscover = async (device) => {
+      if (settled) return;
+      try {
+        await device.connect();
+        if (!(device instanceof NodeCoral.SingleMotorDevice)) {
+          settled = true;
+          device.disconnect();
+          reject(new Error('That was not a Single Motor. Try again and pick your sorting arm motor from the list.'));
+          return;
+        }
+        settled = true;
+        armMotorDevice = device;
+        resolve(device);
+      } catch (err) {
+        settled = true;
+        reject(err);
+      }
+    };
+    coral.on('discover', onDiscover);
+    coral.scan().then(() => {
+      if (!settled) { settled = true; reject(new Error('No device selected.')); }
+    }).catch((err) => {
+      if (!settled) { settled = true; reject(err); }
+    });
+  });
+}
+
+async function routeToBin(bin) {
+  if (!armMotorDevice || bin.armPosition === undefined || bin.armPosition === null || bin.armPosition === '') return;
+  try {
+    await armMotorDevice.runMotorToAbsolutePosition(Number(bin.armPosition));
+  } catch (e) {
+    console.warn('Arm move failed', e);
+  }
+}
+
+// ============================================================
+// CAMERA + SHAPE DETECTION (OpenCV.js)
+// ============================================================
+function onOpenCvReady() {
+  cvReady = true;
+}
+
+async function connectCamera() {
+  videoEl = document.getElementById('video');
+  camCanvas = document.getElementById('cam-canvas');
+  camCtx = camCanvas.getContext('2d', { willReadFrequently: true });
+
+  camStream = await navigator.mediaDevices.getUserMedia({ video: { width: DETECT_WIDTH, height: DETECT_HEIGHT } });
+  videoEl.srcObject = camStream;
+  await videoEl.play();
+
+  camCanvas.width = DETECT_WIDTH;
+  camCanvas.height = DETECT_HEIGHT;
+
+  document.getElementById('cam-hint').textContent = cvReady ? 'Live preview' : 'Loading shape detection…';
+
+  drawLoop();
+  if (shapeDetectTimer) clearInterval(shapeDetectTimer);
+  shapeDetectTimer = setInterval(runShapeDetection, SHAPE_DETECT_INTERVAL_MS);
+}
+
+function drawLoop() {
+  if (!camStream) return;
+  if (videoEl.readyState >= 2) {
+    camCtx.drawImage(videoEl, 0, 0, DETECT_WIDTH, DETECT_HEIGHT);
+    if (latestShapeFeatures && latestShapeFeatures.points && latestShapeFeatures.points.length > 2) {
+      camCtx.strokeStyle = '#3CE07A';
+      camCtx.lineWidth = 2;
+      camCtx.beginPath();
+      const pts = latestShapeFeatures.points;
+      camCtx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) camCtx.lineTo(pts[i][0], pts[i][1]);
+      camCtx.closePath();
+      camCtx.stroke();
+    }
+  }
+  requestAnimationFrame(drawLoop);
+}
+
+function runShapeDetection() {
+  if (!cvReady || !camStream) return;
+  const features = extractShapeFeatures(camCanvas);
+  latestShapeFeatures = features;
+  if (features) {
+    shapeHistory.push(features);
+    if (shapeHistory.length > SHAPE_HISTORY_LEN) shapeHistory.shift();
+    document.getElementById('cam-hint').style.display = 'none';
+    document.getElementById('shape-circ').textContent = features.circularity.toFixed(2);
+    document.getElementById('shape-ar').textContent = features.aspect.toFixed(2);
+    document.getElementById('shape-ext').textContent = features.extent.toFixed(2);
+  } else {
+    document.getElementById('cam-hint').style.display = 'flex';
+    document.getElementById('cam-hint').textContent = 'No brick detected — try better lighting or a plainer background';
+  }
+}
+
+function extractShapeFeatures(canvas) {
+  let src, gray, blurred;
+  const frameArea = canvas.width * canvas.height;
+  let best = null; // {area, contourPoints}
+  try {
+    src = cv.imread(canvas);
+    gray = new cv.Mat();
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    blurred = new cv.Mat();
+    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+
+    for (const invert of [false, true]) {
+      let thresh = new cv.Mat();
+      const type = (invert ? cv.THRESH_BINARY_INV : cv.THRESH_BINARY) + cv.THRESH_OTSU;
+      cv.threshold(blurred, thresh, 0, 255, type);
+      let contours = new cv.MatVector();
+      let hierarchy = new cv.Mat();
+      cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+      for (let i = 0; i < contours.size(); i++) {
+        const c = contours.get(i);
+        const area = cv.contourArea(c);
+        if (area < MIN_CONTOUR_AREA || area > 0.85 * frameArea) { c.delete(); continue; }
+        if (!best || area > best.area) {
+          const perimeter = cv.arcLength(c, true);
+          const circularity = perimeter > 0 ? (4 * Math.PI * area) / (perimeter * perimeter) : 0;
+          const rect = cv.boundingRect(c);
+          const ar = rect.height > 0 ? rect.width / rect.height : 0;
+          const arNorm = ar > 0 ? Math.min(ar, 1 / ar) : 0;
+          const extent = (rect.width * rect.height) > 0 ? area / (rect.width * rect.height) : 0;
+          const points = [];
+          for (let p = 0; p < c.data32S.length; p += 2) points.push([c.data32S[p], c.data32S[p + 1]]);
+          best = { area, circularity, aspect: arNorm, extent, points };
+        }
+        c.delete();
+      }
+      thresh.delete(); hierarchy.delete(); contours.delete();
+    }
+  } finally {
+    if (src) src.delete();
+    if (gray) gray.delete();
+    if (blurred) blurred.delete();
+  }
+  return best;
+}
+
+function setCamConnected(connected) {
+  document.getElementById('dot-cam').className = 'dot ' + (connected ? 'on' : 'off');
+  document.getElementById('cam-status-text').textContent = connected ? 'Connected' : 'Not connected';
+  document.getElementById('btn-connect-cam').textContent = connected ? 'Reconnect' : 'Connect Camera';
+}
+
+// ============================================================
+// BINS: render, train, delete, classify
+// ============================================================
+function shapeGlyph(shape) {
+  if (!shape) return '';
+  if (shape.circularity > 0.75) return '● round';
+  if (shape.aspect < 0.6) return '▭ long';
+  return '■ blocky';
+}
+
+function renderBins() {
+  const grid = document.getElementById('bins-grid');
+  const empty = document.getElementById('bins-empty');
+  grid.innerHTML = '';
+  if (bins.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  for (const bin of bins) {
+    const card = document.createElement('div');
+    card.className = 'brick-card';
+    const hex = colorToHex(bin.color);
+    card.innerHTML = `
+      <div class="studs"><i style="background:${hex}"></i><i style="background:${hex}"></i><i style="background:${hex}"></i></div>
+      <button class="del" title="Delete bin" data-id="${bin.id}">&times;</button>
+      <div class="swatch-lg" style="background:${hex}"></div>
+      <div class="label">${escapeHtml(bin.label)}</div>
+      <div class="shape-tag">${shapeGlyph(bin.shape)}</div>
+    `;
+    card.querySelector('.del').addEventListener('click', () => deleteBin(bin.id));
+    grid.appendChild(card);
+  }
+}
+
+function colorToHex(norm) {
+  // Convert a normalized (r,g,b) centroid back to a displayable color.
+  const r = Math.round(Math.min(1, norm.r * 2.2) * 255);
+  const g = Math.round(Math.min(1, norm.g * 2.2) * 255);
+  const b = Math.round(Math.min(1, norm.b * 2.2) * 255);
+  return `rgb(${r},${g},${b})`;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function deleteBin(id) {
+  bins = bins.filter((b) => b.id !== id);
+  saveBins();
+  renderBins();
+}
+
+function classify(colorSample, shapeSample) {
+  if (bins.length === 0) return null;
+  const wColor = parseFloat(document.getElementById('w-color').value);
+  const wShape = parseFloat(document.getElementById('w-shape').value);
+  let best = null;
+  for (const bin of bins) {
+    const colorDist = colorSample ? euclid3(colorSample, bin.color, ['r', 'g', 'b']) : 0;
+    const shapeDist = shapeSample ? euclid3(shapeSample, bin.shape, ['circularity', 'aspect', 'extent']) : 0;
+    const total = wColor * colorDist + wShape * shapeDist;
+    if (!best || total < best.dist) best = { bin, dist: total };
+  }
+  return best;
+}
+
+// ============================================================
+// UI wiring
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  renderBins();
+
+  // secure-context / browser support check
+  if (!navigator.bluetooth) {
+    showBanner('Web Bluetooth isn\'t available in this browser. Open this page in Chrome or Edge on desktop (or Android) to connect the Color Sensor.', 'error');
+  }
+
+  // restore last-used connection card fields
+  document.getElementById('card-color').value = localStorage.getItem('brickSorterCardColor') || '';
+  document.getElementById('card-serial').value = localStorage.getItem('brickSorterCardSerial') || '';
+
+  document.getElementById('btn-connect-color').addEventListener('click', async () => {
+    hideBanner();
+    const cardColor = document.getElementById('card-color').value;
+    const cardSerial = document.getElementById('card-serial').value.trim();
+    localStorage.setItem('brickSorterCardColor', cardColor);
+    localStorage.setItem('brickSorterCardSerial', cardSerial);
+    try {
+      if (cardColor || cardSerial) {
+        showBanner('Choose your Color Sensor from the browser\'s device list (narrowed to your card)…', 'info');
+        await connectColorSensorWithCard(cardColor, cardSerial);
+      } else {
+        showBanner('Choose your Color Sensor from the browser\'s device list…', 'info');
+        await connectColorSensor();
+      }
+      setColorConnected(true);
+      hideBanner();
+    } catch (err) {
+      setColorConnected(false);
+      showBanner(err.message || String(err), 'error');
+    }
+  });
+
+  document.getElementById('btn-connect-cam').addEventListener('click', async () => {
+    hideBanner();
+    try {
+      await connectCamera();
+      setCamConnected(true);
+    } catch (err) {
+      setCamConnected(false);
+      showBanner('Could not access the camera: ' + (err.message || err), 'error');
+    }
+  });
+
+  document.getElementById('btn-connect-arm').addEventListener('click', async () => {
+    hideBanner();
+    try {
+      showBanner('Choose your sorting arm motor from the browser\'s device list…', 'info');
+      await connectSortingArm();
+      document.getElementById('arm-status-text').textContent = 'Connected';
+      hideBanner();
+    } catch (err) {
+      showBanner(err.message || String(err), 'error');
+    }
+  });
+
+  document.getElementById('advanced-toggle').addEventListener('click', () => {
+    document.getElementById('advanced-panel').classList.toggle('show');
+  });
+  document.getElementById('w-color').addEventListener('input', (e) => {
+    document.getElementById('w-color-val').textContent = parseFloat(e.target.value).toFixed(1);
+  });
+  document.getElementById('w-shape').addEventListener('input', (e) => {
+    document.getElementById('w-shape-val').textContent = parseFloat(e.target.value).toFixed(1);
+  });
+  document.getElementById('use-arm').addEventListener('change', (e) => {
+    document.getElementById('arm-connect-row').style.display = e.target.checked ? 'block' : 'none';
+  });
+
+  // ---- train modal ----
+  const trainModal = document.getElementById('train-modal');
+  function openTrainModal() {
+    document.getElementById('train-label').value = '';
+    capturedColorForTraining = null;
+    capturedShapeForTraining = null;
+    document.getElementById('capture-color-status').textContent = 'Not captured yet';
+    document.getElementById('capture-color-status').className = 'capture-status';
+    document.getElementById('capture-shape-status').textContent = 'Capture color first';
+    document.getElementById('capture-shape-status').className = 'capture-status';
+    document.getElementById('btn-capture-shape').disabled = true;
+    trainModal.classList.add('show');
+  }
+  function closeTrainModal() { trainModal.classList.remove('show'); }
+
+  document.getElementById('btn-train').addEventListener('click', openTrainModal);
+  document.getElementById('train-close').addEventListener('click', closeTrainModal);
+  document.getElementById('train-cancel').addEventListener('click', closeTrainModal);
+
+  document.getElementById('btn-capture-color').addEventListener('click', () => {
+    if (!colorSensorDevice) {
+      showBanner('Connect the Color Sensor first.', 'error');
+      return;
+    }
+    if (colorHistory.length === 0) {
+      showBanner('No color readings yet — hold a brick under the sensor for a moment.', 'error');
+      return;
+    }
+    capturedColorForTraining = average(colorHistory, ['r', 'g', 'b']);
+    const st = document.getElementById('capture-color-status');
+    st.textContent = 'Captured ✓';
+    st.className = 'capture-status ok';
+    document.getElementById('btn-capture-shape').disabled = false;
+    document.getElementById('capture-shape-status').textContent = 'Not captured yet';
+  });
+
+  document.getElementById('btn-capture-shape').addEventListener('click', () => {
+    if (!capturedColorForTraining) { showBanner('Capture the color first.', 'error'); return; }
+    if (!camStream) {
+      showBanner('Connect the camera first.', 'error');
+      return;
+    }
+    if (shapeHistory.length === 0) {
+      showBanner('No shape readings yet — show the brick to the camera for a moment.', 'error');
+      return;
+    }
+    capturedShapeForTraining = average(shapeHistory, ['circularity', 'aspect', 'extent']);
+    const st = document.getElementById('capture-shape-status');
+    st.textContent = 'Captured ✓';
+    st.className = 'capture-status ok';
+  });
+
+  document.getElementById('train-save').addEventListener('click', () => {
+    const label = document.getElementById('train-label').value.trim();
+    if (!label) { showBanner('Give this bin a label.', 'error'); return; }
+    if (!capturedColorForTraining) { showBanner('Capture a color reading first.', 'error'); return; }
+    if (!capturedShapeForTraining) { showBanner('Capture a shape reading first.', 'error'); return; }
+    bins.push({
+      id: 'bin_' + Date.now(),
+      label,
+      color: capturedColorForTraining,
+      shape: capturedShapeForTraining,
+      armPosition: null
+    });
+    saveBins();
+    renderBins();
+    closeTrainModal();
+    hideBanner();
+  });
+
+  // ---- sort modal (sequential: color first, then shape) ----
+  let sortCapturedColor = null;
+  let sortCapturedShape = null;
+  const sortModal = document.getElementById('sort-modal');
+
+  function openSortModal() {
+    sortCapturedColor = null;
+    sortCapturedShape = null;
+    document.getElementById('sort-capture-color-status').textContent = 'Not captured yet';
+    document.getElementById('sort-capture-color-status').className = 'capture-status';
+    document.getElementById('sort-capture-shape-status').textContent = 'Capture color first';
+    document.getElementById('sort-capture-shape-status').className = 'capture-status';
+    document.getElementById('btn-sort-capture-shape').disabled = true;
+    document.getElementById('btn-do-sort').disabled = true;
+    document.getElementById('sort-result-banner').classList.remove('show');
+    sortModal.classList.add('show');
+  }
+  function closeSortModal() { sortModal.classList.remove('show'); }
+
+  document.getElementById('btn-sort').addEventListener('click', () => {
+    hideBanner();
+    if (bins.length === 0) { showBanner('Train at least one bin first.', 'error'); return; }
+    openSortModal();
+  });
+  document.getElementById('sort-close').addEventListener('click', closeSortModal);
+  document.getElementById('sort-reset').addEventListener('click', openSortModal);
+
+  document.getElementById('btn-sort-capture-color').addEventListener('click', () => {
+    if (!colorSensorDevice) { showBanner('Connect the Color Sensor first.', 'error'); return; }
+    if (colorHistory.length === 0) { showBanner('No color readings yet — hold the brick under the sensor.', 'error'); return; }
+    sortCapturedColor = average(colorHistory, ['r', 'g', 'b']);
+    const st = document.getElementById('sort-capture-color-status');
+    st.textContent = 'Captured ✓';
+    st.className = 'capture-status ok';
+    document.getElementById('btn-sort-capture-shape').disabled = false;
+    document.getElementById('sort-capture-shape-status').textContent = 'Not captured yet';
+  });
+
+  document.getElementById('btn-sort-capture-shape').addEventListener('click', () => {
+    if (!sortCapturedColor) { showBanner('Capture the color first.', 'error'); return; }
+    if (!camStream) { showBanner('Connect the camera first.', 'error'); return; }
+    if (shapeHistory.length === 0) { showBanner('No shape readings yet — show the brick to the camera.', 'error'); return; }
+    sortCapturedShape = average(shapeHistory, ['circularity', 'aspect', 'extent']);
+    const st = document.getElementById('sort-capture-shape-status');
+    st.textContent = 'Captured ✓';
+    st.className = 'capture-status ok';
+    document.getElementById('btn-do-sort').disabled = false;
+  });
+
+  document.getElementById('btn-do-sort').addEventListener('click', async () => {
+    if (!sortCapturedColor || !sortCapturedShape) return;
+    const result = classify(sortCapturedColor, sortCapturedShape);
+    if (!result) return;
+    document.getElementById('sort-result-label').textContent = 'Sorted into: ' + result.bin.label;
+    document.getElementById('sort-result-dist').textContent = 'match distance ' + result.dist.toFixed(4);
+    document.getElementById('sort-result-banner').classList.add('show');
+    await routeToBin(result.bin);
+  });
+});
+
+</script>
+</body>
+</html>
