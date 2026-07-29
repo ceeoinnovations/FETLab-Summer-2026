@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Predicting the Build — BrickBot Regression Lab</title>
+<style>
+  :root{
+    --brick-red:#C91A09;
+    --brick-red-dark:#8f1206;
+    --brick-yellow:#F2CD37;
+    --brick-yellow-dark:#b89710;
+    --brick-blue:#0057A6;
+    --brick-blue-dark:#003b73;
+    --brick-green:#237841;
+    --plate-green:#04952F;
+    --plate-green-dark:#037226;
+    --cream:#FFFDF7;
+    --ink:#1B1B1B;
+    --ink-soft:#4a4a46;
+    --line:#d8d3c4;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Segoe UI", Verdana, Arial, sans-serif;
+    color:var(--ink);
+    background-color:var(--plate-green);
+    background-image:
+      radial-gradient(circle at center, rgba(255,255,255,0.16) 0 6px, transparent 7px);
+    background-size: 34px 34px;
+    background-position: 17px 17px;
+    min-height:100vh;
+    padding: 24px 16px 60px;
+  }
+  .wrap{max-width:880px;margin:0 auto;}
+
+  header{
+    text-align:center;
+    margin-bottom:22px;
+  }
+  header h1{
+    font-size:34px;
+    letter-spacing:0.5px;
+    color:var(--cream);
+    text-shadow: 0 2px 0 rgba(0,0,0,0.25);
+    margin:0 0 6px;
+    font-weight:800;
+  }
+  header p{
+    color:var(--cream);
+    opacity:0.92;
+    margin:0;
+    font-size:15px;
+  }
+
+  .brick-card{
+    background:var(--cream);
+    border-radius:6px;
+    padding:22px 24px 24px;
+    margin-bottom:22px;
+    position:relative;
+    box-shadow:0 6px 0 rgba(0,0,0,0.18), 0 8px 14px rgba(0,0,0,0.15);
+  }
+  .brick-card::before{
+    content:"";
+    display:block;
+    position:absolute;
+    top:-11px; left:24px; right:24px;
+    height:11px;
+    background-image: radial-gradient(circle, #fff 0 5px, transparent 6px);
+    background-size: 26px 11px;
+    background-repeat:repeat-x;
+    background-position: 4px 0;
+    opacity:0.9;
+  }
+
+  h2{
+    font-size:20px;
+    margin:0 0 12px;
+    color:var(--brick-blue-dark);
+    font-weight:800;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  h2 .num{
+    background:var(--brick-blue);
+    color:#fff;
+    width:26px;height:26px;
+    border-radius:50%;
+    display:inline-flex;
+    align-items:center;justify-content:center;
+    font-size:14px;
+    flex:none;
+  }
+  h3{font-size:15px;margin:0 0 8px;color:var(--ink);font-weight:700;}
+  p{line-height:1.55;font-size:14.5px;color:var(--ink-soft);}
+  ol,ul{line-height:1.6;font-size:14.5px;color:var(--ink-soft);padding-left:20px;}
+  ol li, ul li{margin-bottom:6px;}
+  strong{color:var(--ink);}
+
+  .robot-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(190px,1fr));
+    gap:14px;
+    margin-top:10px;
+  }
+  .robot-tile{
+    border:2px solid var(--line);
+    border-radius:6px;
+    padding:14px;
+    background:#fff;
+  }
+  .robot-tile.trick{border-color:var(--brick-red);background:#fff7f5;}
+  .robot-tile .tag{
+    display:inline-block;
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:0.5px;
+    padding:2px 8px;
+    border-radius:10px;
+    color:#fff;
+    margin-bottom:8px;
+  }
+  .tag.small{background:var(--brick-yellow-dark);}
+  .tag.medium{background:var(--brick-green);}
+  .tag.large{background:var(--brick-blue);}
+  .tag.trick{background:var(--brick-red);}
+  label{
+    display:block;
+    font-size:12.5px;
+    font-weight:700;
+    margin:8px 0 3px;
+    color:var(--ink-soft);
+  }
+  input[type=number], input[type=text]{
+    width:100%;
+    padding:8px 9px;
+    font-size:14px;
+    border:1.5px solid var(--line);
+    border-radius:5px;
+    font-family:inherit;
+  }
+  input:focus{outline:2px solid var(--brick-blue); border-color:var(--brick-blue);}
+
+  button{
+    font-family:inherit;
+    font-weight:800;
+    font-size:14px;
+    padding:11px 18px;
+    border-radius:6px;
+    border:none;
+    cursor:pointer;
+    color:#fff;
+    background:var(--brick-blue);
+    box-shadow:0 3px 0 var(--brick-blue-dark);
+  }
+  button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--brick-blue-dark);}
+  button.secondary{
+    background:var(--brick-yellow);
+    color:#4a3a00;
+    box-shadow:0 3px 0 var(--brick-yellow-dark);
+  }
+  button.red{
+    background:var(--brick-red);
+    box-shadow:0 3px 0 var(--brick-red-dark);
+  }
+  .btn-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+
+  .toggle-row{
+    display:flex; align-items:center; gap:10px;
+    margin-top:16px; padding-top:14px; border-top:1px dashed var(--line);
+  }
+  .toggle-row input{width:auto;}
+
+  canvas{width:100%; max-width:100%; display:block; background:#fff; border-radius:6px; border:1.5px solid var(--line);}
+
+  .stat-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(160px,1fr));
+    gap:10px;
+    margin-top:14px;
+  }
+  .stat{
+    background:#f5f2e8;
+    border-radius:6px;
+    padding:10px 12px;
+  }
+  .stat .label{font-size:11.5px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;}
+  .stat .value{font-size:19px;font-weight:800;color:var(--brick-blue-dark);margin-top:2px;}
+
+  .legend{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft);font-weight:700;}
+  .swatch{width:16px;height:3px;border-radius:2px;display:inline-block;}
+
+  .compare-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
+    gap:10px;
+    margin-top:12px;
+  }
+  .compare-card{
+    border-radius:6px;
+    padding:12px;
+    text-align:center;
+  }
+  .compare-card.you{background:#fff8e0;border:2px solid var(--brick-yellow-dark);}
+  .compare-card.computer{background:#eaf2fb;border:2px solid var(--brick-blue);}
+  .compare-card.actual{background:#eafbef;border:2px solid var(--brick-green);}
+  .compare-card .title{font-size:12px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;}
+  .compare-card .num{font-size:20px;font-weight:800;margin-top:4px;}
+
+  details summary{cursor:pointer;font-weight:700;color:var(--brick-blue-dark);}
+  .note{
+    background:#fff7f5;
+    border-left:4px solid var(--brick-red);
+    padding:10px 14px;
+    font-size:13.5px;
+    border-radius:4px;
+    color:var(--ink-soft);
+    margin-top:12px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>🧱 BrickBot Regression Lab</h1>
+    <p>The companion tool for your Small / Medium / Large robot build — works fully offline, no internet needed.</p>
+  </header>
+
+  <div class="brick-card">
+    <h2><span class="num">1</span>How to use this page</h2>
+    <ol>
+      <li>Build your <strong>Small, Medium, and Large</strong> robots first. Count the bricks in each.</li>
+      <li>Enter your brick counts and times/loads in <strong>Step 2</strong> — optionally connect a LEGO hub over Bluetooth there to auto-record motor time with Start/Stop buttons, or just use a regular stopwatch.</li>
+      <li>In <strong>Step 3</strong>, write down your own guess for an Extra-Large robot — before you build it and before you press any buttons.</li>
+      <li>Press <strong>"Let the computer find the line"</strong> in Step 4 to see the real regression line calculated from your data. Compare it to your guess.</li>
+      <li>Build your Extra-Large robot for real, enter its actual numbers, and see who was closer — you or the computer.</li>
+      <li>Then build the <strong>Trick Bot</strong> (same height as Medium, but hidden extra bricks inside). Turn it on in Step 5 and watch the line move.</li>
+    </ol>
+    <div class="note">Your data stays only on this device — nothing is sent anywhere. It's saved automatically so you can close and reopen the page without losing your work.</div>
+  </div>
+
+  <div class="brick-card">
+    <h2><span class="num">2</span>Log your robots</h2>
+    <details style="margin-bottom:14px;">
+      <summary>What does "motor time for 5 spins" mean? (click to see how to measure it)</summary>
+      <div style="margin-top:10px;">
+        <p>It's how many seconds it takes your robot's motorized arm to spin all the way around <strong>5 times</strong>. Bigger robots usually have heavier arms, so the same motor takes longer to push them around — this gives you a second number (besides brick count) that should also change with robot size.</p>
+        <p><strong>But this only works with certain motors — check yours first.</strong> There are two kinds:</p>
+        <ul>
+          <li><strong>Simple power motors</strong> (basic Technic or WeDo motors): you set a power percentage, not a speed. A heavier arm resists more, so the same power setting spins it slower. Spin time genuinely reflects the robot's size.</li>
+          <li><strong>Smart speed-controlled motors</strong> (SPIKE Prime, Mindstorms Robot Inventor): these have a built-in sensor that automatically adds more power to fight resistance and hold a steady target speed. Spin time will stay nearly the same on every robot no matter how heavy the arm is — the motor is compensating, and the number stops meaning anything.</li>
+        </ul>
+        <div class="note"><strong>60-second pre-check:</strong> spin the same motor at the same setting once with an empty arm, then once with a heavy load on the arm. If the time changes noticeably, you have a simple motor — spin time will work great. If the time barely changes, you have a smart motor — switch to the alternative metric below instead.</div>
+        <p style="margin-top:10px;"><strong>Alternative metric — "load until stall":</strong> if your motor compensates for speed, instead measure how many extra bricks you can hang on the arm before the motor can't hold the target speed anymore and stalls out. That forces the motor past its compensation limit, so the number reflects the robot's real strength/weight again. Pick which metric you're using below — it changes the labels for you.</p>
+        <label>Which second metric are you measuring?</label>
+        <select id="metricType" style="width:100%;padding:8px 9px;font-size:14px;border:1.5px solid var(--line);border-radius:5px;font-family:inherit;">
+          <option value="time">Spin time for 5 rotations (simple power motor)</option>
+          <option value="stall">Bricks loaded before stall (smart speed-controlled motor)</option>
+        </select>
+      </div>
+    </details>
+
+    <details style="margin-bottom:14px;">
+      <summary>Optional: connect over Bluetooth to auto-record the time</summary>
+      <div style="margin-top:10px;">
+        <p>Connect directly to a LEGO Education Single Motor (from the Computer Science &amp; AI kits) over Bluetooth, then use Start/Stop below to time a motor run automatically — no stopwatch needed. This also works great for the pre-check test above, and it can even auto-detect the exact moment the motor stalls.</p>
+        <div class="note">
+          <strong>Before you try it:</strong> this needs Chrome or Edge on a laptop or desktop (not a phone, not Safari), Bluetooth turned on, and this page loaded over <code>https://</code> or from <code>localhost</code> — opening the file directly (<code>file://</code>) will usually block Bluetooth for security reasons. If the button below does nothing, try running a simple local server (ask a teacher/adult, or search "how to open a local file with a local server") and open the page that way instead. Make sure your Single Motor is charged, powered on, and broadcasting. This connects using the same open protocol as LEGO's own <a href="https://github.com/LEGO/LEGOEducation" target="_blank" rel="noopener">LEGO Education Python API</a>.
+        </div>
+        <div class="btn-row">
+          <button id="bleConnectBtn">Connect to Single Motor</button>
+          <button class="secondary" id="bleDisconnectBtn" style="display:none;">Disconnect</button>
+        </div>
+        <div id="bleStatus" style="margin-top:12px;font-size:13.5px;color:var(--ink-soft);"></div>
+        <div id="blePorts" class="stat-grid" style="margin-top:10px;"></div>
+
+        <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--line);">
+          <h3>Auto-record a run</h3>
+          <div class="robot-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));">
+            <div>
+              <label>Recording for</label>
+              <select id="recordTarget">
+                <option value="small">Small robot</option>
+                <option value="medium">Medium robot</option>
+                <option value="large">Large robot</option>
+                <option value="trick">Trick Bot</option>
+              </select>
+            </div>
+            <div>
+              <label>Motor power (if starting via Bluetooth, -100 to 100)</label>
+              <input type="number" id="recordPower" value="50" min="-100" max="100">
+            </div>
+          </div>
+          <div class="toggle-row" style="border-top:none;padding-top:0;margin-top:12px;">
+            <input type="checkbox" id="autoStopCheckbox">
+            <label for="autoStopCheckbox" style="margin:0;">Auto-stop after 5 rotations, or the instant the motor stalls (needs Bluetooth)</label>
+          </div>
+          <div class="btn-row">
+            <button id="startRecordBtn">▶ Start</button>
+            <button class="red" id="stopRecordBtn" disabled>■ Stop</button>
+            <button class="secondary" id="emergencyStopBtn">⏹ Emergency stop motor</button>
+          </div>
+          <div class="stat-grid" style="margin-top:12px;">
+            <div class="stat">
+              <div class="label">Elapsed time</div>
+              <div class="value" id="elapsedDisplay">0.0 sec</div>
+            </div>
+          </div>
+          <div class="note" id="recordNote" style="display:none;"></div>
+        </div>
+      </div>
+    </details>
+
+    <div class="robot-grid" id="robotGrid"></div>
+  </div>
+
+  <div class="brick-card">
+    <h2><span class="num">3</span>Your guess for the Extra-Large robot</h2>
+    <p>Before pressing any buttons — look at your three dots and guess. What do you think the brick count and motor time will be?</p>
+    <div class="robot-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));">
+      <div class="robot-tile">
+        <span class="tag" style="background:var(--brick-yellow-dark);">Your guess</span>
+        <label>Predicted brick count</label>
+        <input type="number" id="guessBricks" min="0" placeholder="e.g. 210">
+        <label>Predicted motor time (sec)</label>
+        <input type="number" id="guessTime" min="0" step="0.001" placeholder="e.g. 9.5">
+      </div>
+      <div class="robot-tile">
+        <span class="tag tag" style="background:var(--brick-green);">Actual (after you build it)</span>
+        <label>Actual brick count</label>
+        <input type="number" id="actualBricks" min="0" placeholder="fill in later">
+        <label>Actual motor time (sec)</label>
+        <input type="number" id="actualTime" min="0" step="0.001" placeholder="fill in later">
+      </div>
+    </div>
+  </div>
+
+  <div class="brick-card">
+    <h2><span class="num">4</span>Plot it and let the computer find the line</h2>
+    <canvas id="chart" width="800" height="420"></canvas>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--brick-blue);"></span>Your robots</span>
+      <span><span class="swatch" style="background:var(--brick-green);"></span>Extra-Large (actual)</span>
+      <span><span class="swatch" style="background:var(--brick-red);"></span>Trick Bot</span>
+    </div>
+    <div class="btn-row">
+      <button id="computeBtn">Let the computer find the line</button>
+      <button class="secondary" id="clearBtn">Reset all data</button>
+    </div>
+
+    <div class="stat-grid" id="statGrid" style="display:none;">
+      <div class="stat">
+        <div class="label">For every +1 brick</div>
+        <div class="value" id="slopeStat">—</div>
+      </div>
+      <div class="stat">
+        <div class="label">Line starts at</div>
+        <div class="value" id="interceptStat">—</div>
+      </div>
+      <div class="stat">
+        <div class="label">How well the line fits</div>
+        <div class="value" id="fitStat">—</div>
+      </div>
+    </div>
+
+    <div class="compare-grid" id="compareGrid" style="display:none;">
+      <div class="compare-card you">
+        <div class="title">Your guess</div>
+        <div class="num" id="compareYou">—</div>
+      </div>
+      <div class="compare-card computer">
+        <div class="title">Computer's line predicted</div>
+        <div class="num" id="compareComputer">—</div>
+      </div>
+      <div class="compare-card actual">
+        <div class="title">What actually happened</div>
+        <div class="num" id="compareActual">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="brick-card">
+    <h2><span class="num">5</span>Break the line with the Trick Bot</h2>
+    <p>Build a robot the exact same height as your Medium robot, but hide extra bricks inside it (or make it hollow). Log it here, then flip the switch below and press "Let the computer find the line" again.</p>
+    <div class="robot-tile trick" style="max-width:260px;">
+      <span class="tag trick">Trick Bot</span>
+      <label>Brick count</label>
+      <input type="number" id="trickBricks" min="0" placeholder="e.g. 260">
+      <label>Motor time (sec)</label>
+      <input type="number" id="trickTime" min="0" step="0.001" placeholder="e.g. 5.0">
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="includeTrick">
+      <label for="includeTrick" style="margin:0;">Include the Trick Bot in the computer's line</label>
+    </div>
+    <div class="note" id="trickNote" style="display:none;"></div>
+  </div>
+
+  <div class="brick-card">
+    <details>
+      <summary>What just happened? (read after your class discussion)</summary>
+      <p style="margin-top:10px;">The computer used <strong>regression</strong> — the same thing you did by eye, but calculated precisely — to draw the line that best fits all your data points. That's what "training" an AI often means: finding the line (or curve) that makes the smallest total error across every example it's shown.</p>
+      <p>When you added the Trick Bot, the line shifted — sometimes a lot from just one weird example. That's exactly how real AI models can get fooled: they assume new cases will follow the same pattern as their training examples. When something breaks that assumption — like a house that doesn't look like the houses a pricing model was trained on — the prediction can be way off with total confidence.</p>
+    </details>
+  </div>
+
+</div>
+
+<script>
+const STORAGE_KEY = "brickbot-regression-v1";
+
+function defaultState(){
+  return {
+    small:{bricks:"", time:""},
+    medium:{bricks:"", time:""},
+    large:{bricks:"", time:""},
+    guessBricks:"", guessTime:"",
+    actualBricks:"", actualTime:"",
+    trickBricks:"", trickTime:"",
+    includeTrick:false,
+    metricType:"time"
+  };
+}
+
+let state = defaultState();
+try{
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if(saved) state = Object.assign(defaultState(), JSON.parse(saved));
+}catch(e){}
+
+function save(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+}
+
+const robotGrid = document.getElementById("robotGrid");
+const robots = [
+  {key:"small", label:"Small robot", tag:"small"},
+  {key:"medium", label:"Medium robot", tag:"medium"},
+  {key:"large", label:"Large robot", tag:"large"}
+];
+
+robots.forEach(r=>{
+  const tile = document.createElement("div");
+  tile.className = "robot-tile";
+  tile.innerHTML = `
+    <span class="tag ${r.tag}">${r.label}</span>
+    <label>Brick count</label>
+    <input type="number" min="0" data-key="${r.key}" data-field="bricks" placeholder="e.g. 80">
+    <label class="metric-label" data-key="${r.key}">Time for arm to spin around 5 times (sec)</label>
+    <input type="number" min="0" step="0.001" data-key="${r.key}" data-field="time" placeholder="e.g. 3.2">
+  `;
+  robotGrid.appendChild(tile);
+});
+
+const METRIC_LABELS = {
+  time: "Time for arm to spin around 5 times (sec)",
+  stall: "Bricks loaded before motor stalled (count)"
+};
+function updateMetricLabels(){
+  const type = state.metricType || "time";
+  document.querySelectorAll(".metric-label").forEach(el=>{ el.textContent = METRIC_LABELS[type]; });
+  const yAxisLabel = type === "time" ? "Motor time (sec)" : "Bricks loaded before stall";
+  window.__yAxisLabel = yAxisLabel;
+}
+
+function bindInput(el, getSet){
+  el.value = getSet.get() ?? "";
+  el.addEventListener("input", ()=>{
+    getSet.set(el.value);
+    save();
+    render();
+  });
+}
+
+document.querySelectorAll('#robotGrid input').forEach(el=>{
+  const key = el.dataset.key, field = el.dataset.field;
+  bindInput(el, {
+    get: ()=> state[key][field],
+    set: v=> state[key][field] = v
+  });
+});
+
+bindInput(document.getElementById("guessBricks"), {get:()=>state.guessBricks, set:v=>state.guessBricks=v});
+bindInput(document.getElementById("guessTime"), {get:()=>state.guessTime, set:v=>state.guessTime=v});
+bindInput(document.getElementById("actualBricks"), {get:()=>state.actualBricks, set:v=>state.actualBricks=v});
+bindInput(document.getElementById("actualTime"), {get:()=>state.actualTime, set:v=>state.actualTime=v});
+bindInput(document.getElementById("trickBricks"), {get:()=>state.trickBricks, set:v=>state.trickBricks=v});
+bindInput(document.getElementById("trickTime"), {get:()=>state.trickTime, set:v=>state.trickTime=v});
+
+const metricTypeEl = document.getElementById("metricType");
+metricTypeEl.value = state.metricType || "time";
+metricTypeEl.addEventListener("change", ()=>{
+  state.metricType = metricTypeEl.value;
+  save();
+  updateMetricLabels();
+  render();
+});
+updateMetricLabels();
+const includeTrickEl = document.getElementById("includeTrick");
+includeTrickEl.checked = !!state.includeTrick;
+includeTrickEl.addEventListener("change", ()=>{
+  state.includeTrick = includeTrickEl.checked;
+  save();
+  render();
+});
+
+document.getElementById("clearBtn").addEventListener("click", ()=>{
+  if(confirm("Clear all robot data and start over?")){
+    state = defaultState();
+    save();
+    location.reload();
+  }
+});
+
+let lastFit = null;
+
+document.getElementById("computeBtn").addEventListener("click", ()=>{
+  computeAndShow();
+});
+
+function num(v){
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+function collectPoints(){
+  const pts = [];
+  robots.forEach(r=>{
+    const b = num(state[r.key].bricks), t = num(state[r.key].time);
+    if(b!==null && t!==null) pts.push({x:b, y:t, label:r.label, color:"var(--brick-blue)", colorHex:"#0057A6"});
+  });
+  const ab = num(state.actualBricks), at = num(state.actualTime);
+  if(ab!==null && at!==null) pts.push({x:ab, y:at, label:"Extra-Large (actual)", colorHex:"#237841"});
+  if(state.includeTrick){
+    const tb = num(state.trickBricks), tt = num(state.trickTime);
+    if(tb!==null && tt!==null) pts.push({x:tb, y:tt, label:"Trick Bot", colorHex:"#C91A09"});
+  }
+  return pts;
+}
+
+function leastSquares(pts){
+  const n = pts.length;
+  if(n < 2) return null;
+  const sx = pts.reduce((a,p)=>a+p.x,0);
+  const sy = pts.reduce((a,p)=>a+p.y,0);
+  const sxy = pts.reduce((a,p)=>a+p.x*p.y,0);
+  const sxx = pts.reduce((a,p)=>a+p.x*p.x,0);
+  const denom = (n*sxx - sx*sx);
+  if(denom === 0) return null;
+  const slope = (n*sxy - sx*sy) / denom;
+  const intercept = (sy - slope*sx) / n;
+  const meanY = sy/n;
+  const ssTot = pts.reduce((a,p)=>a+Math.pow(p.y-meanY,2),0);
+  const ssRes = pts.reduce((a,p)=>a+Math.pow(p.y-(slope*p.x+intercept),2),0);
+  const r2 = ssTot === 0 ? 1 : 1 - ssRes/ssTot;
+  return {slope, intercept, r2};
+}
+
+function computeAndShow(){
+  const pts = collectPoints();
+  const fit = leastSquares(pts);
+  lastFit = fit;
+  const statGrid = document.getElementById("statGrid");
+  if(!fit){
+    statGrid.style.display = "none";
+    alert("Enter brick count and motor time for at least the Small, Medium, and Large robots first.");
+    return;
+  }
+  statGrid.style.display = "grid";
+  document.getElementById("slopeStat").textContent = (fit.slope>=0?"+":"") + fit.slope.toFixed(3) + " sec";
+  document.getElementById("interceptStat").textContent = fit.intercept.toFixed(2) + " sec";
+  document.getElementById("fitStat").textContent = (fit.r2*100).toFixed(0) + "% of the pattern explained";
+
+  const gb = num(state.guessBricks);
+  const compareGrid = document.getElementById("compareGrid");
+  if(gb !== null){
+    compareGrid.style.display = "grid";
+    document.getElementById("compareYou").textContent = num(state.guessTime)!==null ? num(state.guessTime).toFixed(3)+" sec" : "—";
+    document.getElementById("compareComputer").textContent = (fit.slope*gb + fit.intercept).toFixed(3) + " sec";
+    const at = num(state.actualTime);
+    document.getElementById("compareActual").textContent = at!==null ? at.toFixed(3)+" sec" : "build it to find out!";
+  } else {
+    compareGrid.style.display = "none";
+  }
+
+  const trickNote = document.getElementById("trickNote");
+  if(state.includeTrick){
+    trickNote.style.display = "block";
+    trickNote.textContent = "Trick Bot included — notice how much the line's slope and starting point changed from just one unusual robot.";
+  } else {
+    trickNote.style.display = "none";
+  }
+
+  drawChart(pts, fit);
+}
+
+function render(){
+  const pts = collectPoints();
+  drawChart(pts, lastFit);
+}
+
+function drawChart(pts, fit){
+  const canvas = document.getElementById("chart");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const pad = {l:60, r:24, t:24, b:50};
+  const plotW = W - pad.l - pad.r;
+  const plotH = H - pad.t - pad.b;
+
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0,0,W,H);
+
+  if(pts.length === 0){
+    ctx.fillStyle = "#8a8a86";
+    ctx.font = "14px Segoe UI, Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("Enter your robot data above to see the plot", W/2, H/2);
+    return;
+  }
+
+  let maxX = Math.max(...pts.map(p=>p.x), 10) * 1.2;
+  let maxY = Math.max(...pts.map(p=>p.y), 5) * 1.2;
+
+  function px(x){ return pad.l + (x/maxX)*plotW; }
+  function py(y){ return pad.t + plotH - (y/maxY)*plotH; }
+
+  ctx.strokeStyle = "#e6e2d4";
+  ctx.lineWidth = 1;
+  ctx.font = "11px Segoe UI, Arial";
+  ctx.fillStyle = "#8a8a86";
+  ctx.textAlign = "right";
+  for(let i=0;i<=5;i++){
+    const y = pad.t + plotH - (i/5)*plotH;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W-pad.r, y); ctx.stroke();
+    ctx.fillText((maxY*i/5).toFixed(1), pad.l-8, y+4);
+  }
+  ctx.textAlign = "center";
+  for(let i=0;i<=5;i++){
+    const x = pad.l + (i/5)*plotW;
+    ctx.fillText(Math.round(maxX*i/5), x, H-pad.b+18);
+  }
+
+  ctx.save();
+  ctx.translate(16, pad.t+plotH/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillStyle = "#4a4a46";
+  ctx.font = "12px Segoe UI, Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(window.__yAxisLabel || "Motor time (sec)", 0, 0);
+  ctx.restore();
+  ctx.fillStyle = "#4a4a46";
+  ctx.textAlign = "center";
+  ctx.fillText("Brick count", pad.l+plotW/2, H-10);
+
+  if(fit){
+    ctx.strokeStyle = "#0057A6";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    const y0 = fit.intercept, y1 = fit.slope*maxX + fit.intercept;
+    ctx.moveTo(px(0), py(Math.max(0,y0)));
+    ctx.lineTo(px(maxX), py(Math.max(0,y1)));
+    ctx.stroke();
+  }
+
+  const gb = num(state.guessBricks), gt = num(state.guessTime);
+  if(gb !== null && gt !== null){
+    ctx.fillStyle = "#F2CD37";
+    ctx.strokeStyle = "#b89710";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(px(gb), py(gt), 6, 0, Math.PI*2);
+    ctx.fill(); ctx.stroke();
+  }
+
+  pts.forEach(p=>{
+    ctx.fillStyle = p.colorHex;
+    ctx.beginPath();
+    ctx.arc(px(p.x), py(p.y), 7, 0, Math.PI*2);
+    ctx.fill();
+  });
+}
+
+render();
+
+// --- Optional Bluetooth connectivity ---
+// This matches the open protocol used by LEGO's own "legoeducation" Python
+// package (https://github.com/LEGO/LEGOEducation) for the CS & AI kits'
+// Single Motor. Each Single Motor is its own Bluetooth peripheral (no ports
+// to pick), running a small binary message protocol: every message starts
+// with a 1-byte message ID, followed by fixed-size fields.
+const RPC_SERVICE_UUID = "0000fd02-0000-1000-8000-00805f9b34fb";
+const RPC_WRITE_UUID    = "0000fd02-0001-1000-8000-00805f9b34fb"; // send TO the motor
+const RPC_NOTIFY_UUID   = "0000fd02-0002-1000-8000-00805f9b34fb"; // receive FROM the motor
+
+// Message IDs (from LEGO's public rpc_message definitions)
+const MSG_PROGRAM_FLOW_NOTIFICATION = 32;
+const MSG_DEVICE_NOTIFICATION_REQUEST = 40;
+const MSG_DEVICE_NOTIFICATION = 60;
+const MSG_MOTOR_RUN_COMMAND = 122;
+const MSG_MOTOR_STOP_COMMAND = 138;
+const MSG_MOTOR_SET_SPEED_COMMAND = 140;
+const SUBTYPE_MOTOR_NOTIFICATION = 10;
+const MOTOR_NOTIFICATION_SIZE = 12; // bytes, excluding its own subtype byte
+const PROGRAM_ACTION_START = 0;
+const MOTOR_BIT_MASK_SINGLE = 1;
+const MOTOR_MOVE_DIRECTION_CLOCKWISE = 0;
+
+// Human-readable motor states (from MotorState enum)
+const MOTOR_STATE_NAMES = {0:"ready", 1:"running", 2:"stalled", 3:"aborted", 4:"regulation error", 5:"disconnected", 6:"holding", 7:"running (DC)", 8:"not allowed to run"};
+const MOTOR_STATE_STALLED = 2;
+
+let bleDevice = null, bleWriteChar = null;
+let latestMotorNotification = null; // {motorState, position, speed, power}
+
+const bleStatus = document.getElementById("bleStatus");
+const blePorts = document.getElementById("blePorts"); // reused as a live-readout panel
+const bleConnectBtn = document.getElementById("bleConnectBtn");
+const bleDisconnectBtn = document.getElementById("bleDisconnectBtn");
+
+function bleSetStatus(msg, isError){
+  bleStatus.textContent = msg;
+  bleStatus.style.color = isError ? "#8f1206" : "var(--ink-soft)";
+}
+
+let rpcSendQueue = Promise.resolve();
+
+function sendRPC(bytes){
+  // Chain writes so they're never fired concurrently — back-to-back writes
+  // without this can race and silently drop one of the two on some BLE stacks.
+  rpcSendQueue = rpcSendQueue.then(async ()=>{
+    if(!bleWriteChar){
+      console.warn("sendRPC: not connected, dropped", bytes);
+      return;
+    }
+    const data = new Uint8Array(bytes);
+    const props = bleWriteChar.properties || {};
+    // Prefer whichever write mode the characteristic actually advertises.
+    // Try that first; if it fails for any reason, try the other mode too,
+    // rather than silently giving up.
+    const attempts = [];
+    if(props.writeWithoutResponse !== false) attempts.push("withoutResponse");
+    if(props.write) attempts.push("withResponse");
+    if(attempts.length === 0) attempts.push("withoutResponse", "withResponse");
+
+    let lastErr = null;
+    for(const mode of attempts){
+      try{
+        if(mode === "withoutResponse" && bleWriteChar.writeValueWithoutResponse){
+          await bleWriteChar.writeValueWithoutResponse(data);
+        } else if(mode === "withResponse" && bleWriteChar.writeValueWithResponse){
+          await bleWriteChar.writeValueWithResponse(data);
+        } else {
+          await bleWriteChar.writeValue(data);
+        }
+        console.log("sendRPC OK (" + mode + "):", Array.from(data));
+        return;
+      }catch(e){
+        lastErr = e;
+        console.warn("sendRPC attempt failed (" + mode + "):", e.message, Array.from(data));
+      }
+    }
+    bleSetStatus("Couldn't send command (" + Array.from(data).join(",") + "): " + (lastErr ? lastErr.message : "unknown error"), true);
+  });
+  return rpcSendQueue;
+}
+
+function renderMotorReadout(){
+  let el = document.getElementById("ble-motor-readout");
+  if(!el){
+    el = document.createElement("div");
+    el.className = "stat";
+    el.id = "ble-motor-readout";
+    el.innerHTML = `<div class="label">Single Motor</div><div class="value"></div>`;
+    blePorts.appendChild(el);
+  }
+  const n = latestMotorNotification;
+  if(!n) return;
+  const stateName = MOTOR_STATE_NAMES[n.motorState] || n.motorState;
+  el.querySelector(".value").textContent = `${stateName} · pos ${n.position}° · speed ${n.speed}`;
+}
+
+function handleMotorNotification(n){
+  latestMotorNotification = n;
+  renderMotorReadout();
+  checkAutoStop(n);
+}
+
+function handleNotification(event){
+  const dv = event.target.value;
+  const messageId = dv.getUint8(0);
+  if(messageId !== MSG_DEVICE_NOTIFICATION) return;
+  const deviceDataLength = dv.getUint16(1, true);
+  let offset = 3;
+  const end = 3 + deviceDataLength;
+  while(offset < end){
+    const subType = dv.getUint8(offset);
+    if(subType === SUBTYPE_MOTOR_NOTIFICATION){
+      const motorBitMask = dv.getUint8(offset+1);
+      const motorState = dv.getUint8(offset+2);
+      const absolutePosition = dv.getUint16(offset+3, true);
+      const power = dv.getInt16(offset+5, true);
+      const speed = dv.getInt8(offset+7);
+      const position = dv.getInt32(offset+8, true);
+      handleMotorNotification({motorBitMask, motorState, absolutePosition, power, speed, position});
+      offset += 1 + MOTOR_NOTIFICATION_SIZE;
+    } else {
+      // Unknown/unhandled sub-notification type for this simplified reader — stop parsing this packet.
+      break;
+    }
+  }
+}
+
+bleConnectBtn.addEventListener("click", async ()=>{
+  if(!navigator.bluetooth){
+    bleSetStatus("This browser doesn't support Web Bluetooth. Try Chrome or Edge on a laptop/desktop.", true);
+    return;
+  }
+  try{
+    bleSetStatus("Choose your LEGO Single Motor from the pop-up...");
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [RPC_SERVICE_UUID] }]
+    });
+    bleSetStatus("Connecting to " + (bleDevice.name || "Single Motor") + "...");
+    const server = await bleDevice.gatt.connect();
+    const service = await server.getPrimaryService(RPC_SERVICE_UUID);
+    bleWriteChar = await service.getCharacteristic(RPC_WRITE_UUID);
+    const notifyChar = await service.getCharacteristic(RPC_NOTIFY_UUID);
+    await notifyChar.startNotifications();
+    notifyChar.addEventListener("characteristicvaluechanged", handleNotification);
+
+    // Mark the program as started, then ask for periodic notifications every 50ms.
+    await sendRPC([MSG_PROGRAM_FLOW_NOTIFICATION, PROGRAM_ACTION_START]);
+    await sendRPC([MSG_DEVICE_NOTIFICATION_REQUEST, 50, 0]); // 50ms, little-endian uint16
+
+    bleSetStatus("Connected to " + (bleDevice.name || "Single Motor") + ". Waiting for data — try turning the motor shaft by hand.");
+    bleConnectBtn.style.display = "none";
+    bleDisconnectBtn.style.display = "inline-block";
+    blePorts.innerHTML = "";
+    bleDevice.addEventListener("gattserverdisconnected", ()=>{
+      bleSetStatus("Disconnected.");
+      bleWriteChar = null;
+      bleConnectBtn.style.display = "inline-block";
+      bleDisconnectBtn.style.display = "none";
+    });
+  }catch(err){
+    bleSetStatus("Couldn't connect: " + err.message + ". Make sure Bluetooth is on and the Single Motor is powered on and broadcasting nearby.", true);
+  }
+});
+
+bleDisconnectBtn.addEventListener("click", ()=>{
+  if(bleDevice && bleDevice.gatt.connected){
+    bleDevice.gatt.disconnect();
+  }
+});
+
+// --- Start/Stop auto-recording ---
+const recordTargetEl = document.getElementById("recordTarget");
+const recordPowerEl = document.getElementById("recordPower");
+const autoStopCheckboxEl = document.getElementById("autoStopCheckbox");
+const startRecordBtn = document.getElementById("startRecordBtn");
+const stopRecordBtn = document.getElementById("stopRecordBtn");
+const elapsedDisplay = document.getElementById("elapsedDisplay");
+const recordNote = document.getElementById("recordNote");
+
+let recordStartTime = null;
+let recordInterval = null;
+let recordBaselinePosition = null;
+let recordActive = false;
+let recordStoppedByStall = false;
+
+function showRecordNote(msg){
+  recordNote.style.display = "block";
+  recordNote.textContent = msg;
+}
+
+function fillRobotField(elapsedSeconds){
+  if(state.metricType === "stall"){
+    showRecordNote(recordStoppedByStall
+      ? "Motor stalled! Now count how many bricks were loaded and enter that number manually above."
+      : "You're set to the 'bricks loaded before stall' metric, which isn't a time \u2014 the stopwatch is just for reference. Enter the brick count manually when it stalls.");
+    return;
+  }
+  const target = recordTargetEl.value; // small|medium|large|trick
+  const rounded = Math.round(elapsedSeconds*1000)/1000;
+  if(target === "trick"){
+    state.trickTime = String(rounded);
+    document.getElementById("trickTime").value = rounded;
+  } else {
+    state[target].time = String(rounded);
+    const input = document.querySelector(`input[data-key="${target}"][data-field="time"]`);
+    if(input) input.value = rounded;
+  }
+  save();
+  render();
+  showRecordNote("Recorded " + rounded + " into the " + recordTargetEl.options[recordTargetEl.selectedIndex].text + " field.");
+}
+
+function stopMotorHardware(){
+  // Always attempt this, regardless of any recording-state bookkeeping —
+  // this is the actual command that stops the physical motor.
+  sendRPC([MSG_MOTOR_STOP_COMMAND, MOTOR_BIT_MASK_SINGLE]);
+}
+
+function stopRecording(){
+  stopMotorHardware();
+  if(!recordActive) return;
+  recordActive = false;
+  clearInterval(recordInterval);
+  const elapsed = (performance.now() - recordStartTime) / 1000;
+  elapsedDisplay.textContent = elapsed.toFixed(3) + " sec";
+  startRecordBtn.disabled = false;
+  stopRecordBtn.disabled = true;
+  fillRobotField(elapsed);
+  recordBaselinePosition = null;
+}
+
+function checkAutoStop(n){
+  if(!recordActive || !autoStopCheckboxEl.checked) return;
+  if(n.motorState === MOTOR_STATE_STALLED){
+    recordStoppedByStall = true;
+    stopRecording();
+    return;
+  }
+  if(recordBaselinePosition === null){ recordBaselinePosition = n.position; return; }
+  const delta = Math.abs(n.position - recordBaselinePosition);
+  if(delta >= 5*360){
+    stopRecording();
+  }
+}
+
+startRecordBtn.addEventListener("click", ()=>{
+  recordActive = true;
+  recordStoppedByStall = false;
+  recordStartTime = performance.now();
+  recordBaselinePosition = latestMotorNotification ? latestMotorNotification.position : null;
+  recordNote.style.display = "none";
+  startRecordBtn.disabled = true;
+  stopRecordBtn.disabled = false;
+  recordInterval = setInterval(()=>{
+    const elapsed = (performance.now() - recordStartTime) / 1000;
+    elapsedDisplay.textContent = elapsed.toFixed(3) + " sec";
+  }, 30);
+  if(bleWriteChar){
+    const power = parseInt(recordPowerEl.value, 10) || 50;
+    sendRPC([MSG_MOTOR_SET_SPEED_COMMAND, MOTOR_BIT_MASK_SINGLE, power & 0xFF]);
+    sendRPC([MSG_MOTOR_RUN_COMMAND, MOTOR_BIT_MASK_SINGLE, MOTOR_MOVE_DIRECTION_CLOCKWISE]);
+  } else {
+    showRecordNote("Not connected over Bluetooth \u2014 timing manually. Watch the arm and press Stop after 5 rotations (or when it stalls).");
+  }
+  if(autoStopCheckboxEl.checked && !bleWriteChar){
+    showRecordNote("Auto-stop needs a Bluetooth connection \u2014 press Stop manually instead.");
+  }
+});
+
+stopRecordBtn.addEventListener("click", stopRecording);
+
+const emergencyStopBtn = document.getElementById("emergencyStopBtn");
+emergencyStopBtn.addEventListener("click", ()=>{
+  stopMotorHardware();
+  showRecordNote("Sent stop command to the motor.");
+});
+</script>
+</body>
+</html>

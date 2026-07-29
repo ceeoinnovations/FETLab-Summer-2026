@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Teach the Car to Drive</title>
+
+<!-- TensorFlow.js + MobileNet feature extractor + KNN classifier (Teachable-Machine-style, no training loop) -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@1.2.6/dist/knn-classifier.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ink:      #17203a;
+    --ink-soft: #55618a;
+    --mat:      #dfe6ef;   /* build-mat blue-grey */
+    --mat-line: #cbd6e4;
+    --panel:    #ffffff;
+    --stud:     #eef3f9;
+
+    --fwd:  #16b364;
+    --left: #2e7cf6;
+    --right:#f5a524;
+    --stop: #e5484d;
+    --back: #8b5cf6;
+    --idle: #9aa6c0;
+
+    --radius: 20px;
+    --shadow: 0 2px 0 var(--mat-line), 0 14px 34px -18px rgba(23,32,58,.45);
+    --display: 'Fredoka', system-ui, sans-serif;
+    --body: 'Inter', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: var(--body);
+    color: var(--ink);
+    background-color: var(--mat);
+    /* build-plate grid */
+    background-image:
+      radial-gradient(circle at center, var(--mat-line) 1.4px, transparent 1.6px);
+    background-size: 26px 26px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 28px 22px 64px; }
+
+  /* ---------- header ---------- */
+  header.top {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap; margin-bottom: 22px;
+  }
+  .brand h1 {
+    font-family: var(--display); font-weight: 700;
+    font-size: clamp(28px, 4vw, 44px); line-height: 1; margin: 0;
+    letter-spacing: -.5px;
+  }
+  .brand p { margin: 8px 0 0; color: var(--ink-soft); font-size: 15px; max-width: 52ch; }
+
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--panel); border-radius: 999px;
+    padding: 9px 14px; font-size: 13px; font-weight: 600;
+    box-shadow: var(--shadow); white-space: nowrap;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--idle); flex: none; }
+  .dot.on  { background: var(--fwd); box-shadow: 0 0 0 4px rgba(22,179,100,.18); }
+  .dot.err { background: var(--stop); box-shadow: 0 0 0 4px rgba(229,71,77,.18); }
+
+  /* ---------- panels ---------- */
+  .panel {
+    background: var(--panel); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 18px;
+  }
+  .panel h2 {
+    font-family: var(--display); font-weight: 600; font-size: 15px;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft);
+    margin: 0 0 14px;
+  }
+
+  .hero { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; }
+  @media (max-width: 820px) { .hero { grid-template-columns: 1fr; } }
+
+  /* ---------- camera ---------- */
+  .stage {
+    position: relative; border-radius: 14px; overflow: hidden;
+    background: #0d1426; aspect-ratio: 4/3;
+    display: flex; align-items: center; justify-content: center;
+  }
+  video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+  .stage .placeholder {
+    color: #8ea0c9; font-size: 14px; text-align: center; padding: 20px; line-height: 1.6;
+  }
+  .stage .readout {
+    position: absolute; left: 12px; bottom: 12px; right: 12px;
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(13,20,38,.72); backdrop-filter: blur(6px);
+    border-radius: 12px; padding: 10px 13px; color: #fff;
+    opacity: 0; transition: opacity .2s;
+  }
+  .stage .readout.show { opacity: 1; }
+  .readout .swatch { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+  .readout .lbl { font-family: var(--display); font-weight: 600; font-size: 16px; }
+  .readout .pct { margin-left: auto; font-family: var(--mono); font-size: 13px; opacity: .85; }
+
+  /* ---------- drive pad (signature) ---------- */
+  .pad {
+    display: grid; gap: 10px;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-areas: ".  fwd  ." "left stop right" ".  back  .";
+    max-width: 320px; margin: 0 auto 18px;
+  }
+  .cell {
+    aspect-ratio: 1/1; border-radius: 16px; border: none;
+    background: var(--stud); color: var(--idle);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--display); font-weight: 600; font-size: 13px;
+    text-transform: uppercase; letter-spacing: .03em;
+    transition: transform .12s, box-shadow .12s, background .12s, color .12s;
+    position: relative;
+  }
+  .cell svg { width: 34px; height: 34px; }
+  .cell[data-area="fwd"]  { grid-area: fwd;  --c: var(--fwd); }
+  .cell[data-area="left"] { grid-area: left; --c: var(--left); }
+  .cell[data-area="right"]{ grid-area: right;--c: var(--right); }
+  .cell[data-area="stop"] { grid-area: stop; --c: var(--stop); }
+  .cell[data-area="back"] { grid-area: back; --c: var(--back); }
+  .cell.live {
+    background: var(--c); color: #fff; transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 10px 22px -8px var(--c);
+  }
+
+  /* live confidence bars */
+  .bars { display: flex; flex-direction: column; gap: 9px; }
+  .bar-row { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; }
+  .bar-row .name { font-weight: 600; font-size: 13px; }
+  .bar-row .val  { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+  .track { grid-column: 1 / -1; height: 8px; border-radius: 999px; background: var(--stud); overflow: hidden; }
+  .track > span { display: block; height: 100%; width: 0%; border-radius: 999px; transition: width .18s; }
+
+  /* ---------- controls bar ---------- */
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    margin: 18px 0; padding: 16px 18px;
+  }
+  .controls .group { display: flex; align-items: center; gap: 10px; }
+  .controls .spacer { flex: 1 1 auto; }
+
+  button {
+    font-family: var(--body); font-weight: 600; font-size: 14px;
+    border: none; border-radius: 12px; padding: 11px 16px; cursor: pointer;
+    background: var(--stud); color: var(--ink); transition: filter .12s, transform .06s;
+  }
+  button:hover { filter: brightness(.97); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--ink); color: #fff; }
+  button.go { background: var(--fwd); color: #fff; }
+  button.warn { background: var(--stop); color: #fff; }
+  button:focus-visible { outline: 3px solid #ffcf5e; outline-offset: 2px; }
+
+  .slider { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-soft); }
+  input[type=range] { accent-color: var(--ink); }
+  .thresh-val { font-family: var(--mono); color: var(--ink); min-width: 40px; }
+
+  .field {
+    font-family: var(--mono); font-size: 13px; border: 1.5px solid var(--mat-line);
+    border-radius: 10px; padding: 9px 11px; width: 180px; color: var(--ink); background: #fff;
+  }
+
+  /* ---------- classes ---------- */
+  .classes-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+
+  .cls {
+    border-radius: 16px; padding: 14px; background: #fff;
+    border: 1.5px solid var(--mat-line); border-top: 5px solid var(--c, var(--idle));
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .cls .row1 { display: flex; align-items: center; gap: 9px; }
+  .cls .name-in {
+    flex: 1; font-family: var(--display); font-weight: 600; font-size: 16px;
+    border: none; background: transparent; color: var(--ink); padding: 2px 0; min-width: 0;
+  }
+  .cls .name-in:focus { outline: none; border-bottom: 2px solid var(--c); }
+  .cls .del { background: none; padding: 4px 6px; color: var(--ink-soft); font-size: 18px; line-height: 1; border-radius: 8px; }
+  .cls .del:hover { background: #fdeaea; color: var(--stop); }
+
+  .cls .maprow { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-soft); }
+  .cls select {
+    font-family: var(--body); font-weight: 600; font-size: 13px; color: var(--ink);
+    border: 1.5px solid var(--mat-line); border-radius: 9px; padding: 7px 9px; background: #fff; flex: 1;
+  }
+
+  .count { font-family: var(--mono); font-size: 13px; color: var(--ink-soft); }
+  .count b { color: var(--ink); font-size: 22px; }
+
+  .capture {
+    width: 100%; background: var(--c, var(--ink)); color: #fff; padding: 13px; font-size: 15px;
+    border-radius: 12px; user-select: none; touch-action: none;
+  }
+  .capture:active, .capture.holding { filter: brightness(1.12); box-shadow: inset 0 0 0 3px rgba(255,255,255,.4); }
+  .cls .clear { background: var(--stud); font-size: 12px; padding: 7px; color: var(--ink-soft); }
+
+  .hint { font-size: 13px; color: var(--ink-soft); margin: 10px 2px 0; line-height: 1.5; }
+  .footer-note { text-align: center; color: var(--ink-soft); font-size: 12.5px; margin-top: 30px; }
+  code { font-family: var(--mono); background: var(--stud); padding: 1px 6px; border-radius: 6px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Teach the Car to Drive</h1>
+      <p>Show the camera what each move looks like, capture a few examples, and the car learns to drive itself — no code required.</p>
+    </div>
+    <div class="chips">
+      <span class="chip"><span class="dot" id="camDot"></span> Camera</span>
+      <span class="chip"><span class="dot" id="modelDot"></span> Model</span>
+      <span class="chip"><span class="dot" id="carDot"></span> Car</span>
+    </div>
+  </header>
+
+  <!-- HERO: the two live things side by side -->
+  <section class="hero">
+    <div class="panel">
+      <h2>Camera</h2>
+      <div class="stage" id="stage">
+        <div class="placeholder" id="camPlaceholder">
+          Press <b>Start camera</b> below to turn on your webcam.<br>
+          Point it at your steering signals — hands, cards, arrows, anything.
+        </div>
+        <video id="video" autoplay playsinline muted style="display:none"></video>
+        <div class="readout" id="readout">
+          <span class="swatch" id="roSwatch"></span>
+          <span class="lbl" id="roLabel">—</span>
+          <span class="pct" id="roPct"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Live prediction</h2>
+      <div class="pad" id="pad">
+        <button class="cell" data-area="fwd" title="Forward">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </button>
+        <button class="cell" data-area="left" title="Left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <button class="cell" data-area="stop" title="Stop">
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>
+        </button>
+        <button class="cell" data-area="right" title="Right">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+        <button class="cell" data-area="back" title="Backward">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        </button>
+      </div>
+      <div class="bars" id="bars"></div>
+    </div>
+  </section>
+
+  <!-- CONTROLS -->
+  <div class="panel controls">
+    <div class="group">
+      <button id="startCam" class="primary">Start camera</button>
+      <button id="predictBtn" class="go" disabled>Start predicting</button>
+    </div>
+    <div class="group slider">
+      <label for="thresh">Send “stop” below</label>
+      <input type="range" id="thresh" min="0" max="0.95" step="0.05" value="0.5">
+      <span class="thresh-val" id="threshVal">50%</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="group">
+      <button id="bleBtn" class="go">Connect car (Bluetooth)</button>
+    </div>
+  </div>
+
+  <!-- CAR SETUP -->
+  <div class="panel" id="carSetup">
+    <h2 style="margin-bottom:14px">Car setup</h2>
+    <div class="controls" style="padding:0;margin:0">
+      <div class="group slider">
+        <label for="speed">Speed</label>
+        <input type="range" id="speed" min="20" max="80" step="5" value="45">
+        <span class="thresh-val" id="speedVal">45</span>
+      </div>
+      <div class="group" style="gap:16px">
+        <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-soft);cursor:pointer">
+          <input type="checkbox" id="invLeft"> Reverse left wheel
+        </label>
+        <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-soft);cursor:pointer">
+          <input type="checkbox" id="invRight" checked> Reverse right wheel
+        </label>
+      </div>
+      <div class="spacer"></div>
+      <div class="group">
+        <button id="testLeft">Test left ▶</button>
+        <button id="testRight">Test right ▶</button>
+        <button id="testStop" class="warn">Stop</button>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:12px">
+      <b>Calibrate once:</b> prop the car up so the wheels spin free, connect over Bluetooth, then press each test button — the wheel should try to roll the car <b>forward</b>. If it spins backward, tick that side's “Reverse” box and test again.
+      No Bluetooth? <a href="#" id="showBridge">Use the Python bridge instead</a>.
+    </p>
+    <div class="group" id="bridgeRow" style="display:none;margin-top:10px">
+      <input class="field" id="wsUrl" value="ws://localhost:8765" spellcheck="false">
+      <button id="wsBtn">Connect bridge</button>
+    </div>
+  </div>
+
+  <!-- CLASSES / TRAINING -->
+  <div class="panel">
+    <div class="classes-head">
+      <h2 style="margin:0">Moves to learn</h2>
+      <button id="addClass">+ Add a move</button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <p class="hint">
+      Hold a capture button while showing the camera that move — grab <b>30–60 examples</b> each, with small variations.
+      The <b>action</b> menu decides what the car actually does when this move wins. You need examples in at least two moves before predicting.
+    </p>
+  </div>
+
+  <p class="footer-note">
+    Runs entirely in your browser with TensorFlow.js — nothing is uploaded. The car connects directly over Bluetooth in Chrome or Edge, or through the optional Python bridge.
+  </p>
+</div>
+
+<script>
+/* ============================================================
+   Teach the Car to Drive — front-end logic
+   Pipeline: webcam frame -> MobileNet embedding -> KNN vote
+   ============================================================ */
+
+const ACTIONS = {
+  forward:  { name: "Forward",  color: getComputedStyle(document.documentElement).getPropertyValue('--fwd').trim() },
+  left:     { name: "Left",     color: getComputedStyle(document.documentElement).getPropertyValue('--left').trim() },
+  right:    { name: "Right",    color: getComputedStyle(document.documentElement).getPropertyValue('--right').trim() },
+  stop:     { name: "Stop",     color: getComputedStyle(document.documentElement).getPropertyValue('--stop').trim() },
+  backward: { name: "Backward", color: getComputedStyle(document.documentElement).getPropertyValue('--back').trim() },
+};
+const PAD_AREA = { forward: "fwd", left: "left", right: "right", stop: "stop", backward: "back" };
+const TOPK = 5;
+const CAPTURE_MS = 90;      // interval between grabbed frames while holding
+const PREDICT_MS = 150;     // live inference cadence
+
+// default moves
+let classes = [
+  { id: id(), label: "Go straight", action: "forward", count: 0 },
+  { id: id(), label: "Turn left",   action: "left",    count: 0 },
+  { id: id(), label: "Turn right",  action: "right",   count: 0 },
+  { id: id(), label: "Stop",        action: "stop",    count: 0 },
+];
+
+let net = null, knn = null;
+let camReady = false, predicting = false, predictTimer = null;
+let threshold = 0.5;
+
+/* ---- car controller: direct Bluetooth (default) or Python bridge ---- */
+const LE_SERVICE = 0xfd02;                                // CS&AI RPC service
+const LE_WRITE   = "0000fd02-0001-1000-8000-00805f9b34fb";
+const M_PROGRAM = 32, PROGRAM_START = 0;                  // wake command processor
+const M_RUN = 122, M_STOP = 138, M_SPEED = 140;           // motor commands
+const DIR_CW = 0, DIR_CCW = 1;
+const BITS_LEFT = 1, BITS_RIGHT = 2, BITS_BOTH = 3;       // double-motor side masks
+const car = { transport:null, device:null, writeChar:null, ws:null,
+              speed:45, invertLeft:false, invertRight:true, lastAction:null };
+let rpcQueue = Promise.resolve();
+
+// ---- element refs ----
+const $ = s => document.querySelector(s);
+const video = $("#video");
+const grid = $("#grid");
+const bars = $("#bars");
+const camDot = $("#camDot"), modelDot = $("#modelDot"), carDot = $("#carDot");
+
+function id() { return Math.random().toString(36).slice(2, 9); }
+function actionColor(a) { return ACTIONS[a] ? ACTIONS[a].color : getComputedStyle(document.documentElement).getPropertyValue('--idle').trim(); }
+
+/* ---------------- model bootstrapping ---------------- */
+(async function boot() {
+  knn = knnClassifier.create();
+  try {
+    modelDot.classList.remove('on','err');
+    net = await mobilenet.load({ version: 2, alpha: 0.5 });
+    modelDot.classList.add('on');
+  } catch (e) {
+    modelDot.classList.add('err');
+    console.error(e);
+    alert("Couldn't load the vision model. Check your internet connection (the model is fetched once from a CDN) and reload.");
+  }
+})();
+
+/* ---------------- rendering the class cards ---------------- */
+function renderClasses() {
+  grid.innerHTML = "";
+  classes.forEach(c => {
+    const col = actionColor(c.action);
+    const card = document.createElement("div");
+    card.className = "cls";
+    card.style.setProperty("--c", col);
+    card.innerHTML = `
+      <div class="row1">
+        <input class="name-in" value="${escapeHtml(c.label)}" aria-label="Move name">
+        <button class="del" title="Remove move">&times;</button>
+      </div>
+      <div class="maprow">
+        <span>Car does:</span>
+        <select aria-label="Car action">
+          ${Object.keys(ACTIONS).map(a => `<option value="${a}" ${a===c.action?"selected":""}>${ACTIONS[a].name}</option>`).join("")}
+        </select>
+      </div>
+      <div class="count"><b>${c.count}</b> examples</div>
+      <button class="capture">Hold to capture</button>
+      <button class="clear">Clear examples</button>
+    `;
+    // name edit
+    card.querySelector(".name-in").addEventListener("input", e => { c.label = e.target.value; });
+    // action change
+    card.querySelector("select").addEventListener("change", e => {
+      c.action = e.target.value;
+      card.style.setProperty("--c", actionColor(c.action));
+    });
+    // delete
+    card.querySelector(".del").addEventListener("click", () => {
+      if (!confirm(`Remove “${c.label}”?`)) return;
+      try { knn.clearClass(c.id); } catch (_) {}
+      classes = classes.filter(x => x.id !== c.id);
+      renderClasses(); renderBars();
+    });
+    // clear examples
+    card.querySelector(".clear").addEventListener("click", () => {
+      try { knn.clearClass(c.id); } catch (_) {}
+      c.count = 0; renderClasses(); renderBars(); updatePredictReady();
+    });
+    // hold-to-capture
+    const capBtn = card.querySelector(".capture");
+    bindHold(capBtn, c);
+    grid.appendChild(card);
+  });
+  renderBars();
+}
+
+function escapeHtml(s){ return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ---------------- capture (press & hold) ---------------- */
+function bindHold(btn, c) {
+  let holdTimer = null;
+  const start = (ev) => {
+    ev.preventDefault();
+    if (!camReady || !net) { flashHint("Start the camera first."); return; }
+    btn.classList.add("holding");
+    const grab = () => { addExample(c); };
+    grab();
+    holdTimer = setInterval(grab, CAPTURE_MS);
+  };
+  const stop = () => {
+    btn.classList.remove("holding");
+    if (holdTimer) { clearInterval(holdTimer); holdTimer = null; }
+  };
+  btn.addEventListener("mousedown", start);
+  btn.addEventListener("touchstart", start, { passive: false });
+  ["mouseup","mouseleave","touchend","touchcancel"].forEach(e => btn.addEventListener(e, stop));
+}
+
+function addExample(c) {
+  const act = tf.tidy(() => net.infer(video, true));
+  knn.addExample(act, c.id);
+  act.dispose();
+  c.count++;
+  // update just this card's count cheaply
+  const cards = grid.querySelectorAll(".cls");
+  const idx = classes.findIndex(x => x.id === c.id);
+  if (cards[idx]) cards[idx].querySelector(".count b").textContent = c.count;
+  updatePredictReady();
+}
+
+/* ---------------- live prediction loop ---------------- */
+function updatePredictReady() {
+  const withExamples = classes.filter(c => c.count > 0).length;
+  $("#predictBtn").disabled = !(camReady && net && withExamples >= 2);
+}
+
+async function predictOnce() {
+  const total = classes.reduce((s,c) => s + c.count, 0);
+  if (total === 0) return;
+  let res;
+  try {
+    const act = tf.tidy(() => net.infer(video, true));
+    res = await knn.predictClass(act, Math.min(TOPK, total));
+    act.dispose();
+  } catch (e) { return; }
+
+  // map KNN label (our class id) -> class object
+  const winner = classes.find(c => c.id === res.label);
+  if (!winner) return;
+  const conf = res.confidences[res.label] || 0;
+
+  // decide action: below threshold => safety stop
+  const action = conf >= threshold ? winner.action : "stop";
+
+  paintPad(action);
+  paintReadout(winner, conf, action);
+  paintBars(res.confidences);
+  streamToCar(action, winner.label, conf);
+}
+
+function startPredicting() {
+  if (predicting) return;
+  predicting = true;
+  $("#predictBtn").textContent = "Stop predicting";
+  $("#predictBtn").classList.remove("go"); $("#predictBtn").classList.add("warn");
+  predictTimer = setInterval(predictOnce, PREDICT_MS);
+}
+function stopPredicting() {
+  predicting = false;
+  clearInterval(predictTimer); predictTimer = null;
+  $("#predictBtn").textContent = "Start predicting";
+  $("#predictBtn").classList.add("go"); $("#predictBtn").classList.remove("warn");
+  paintPad(null);
+  $("#readout").classList.remove("show");
+  streamToCar("stop", "(stopped)", 1); // safety: stop the car when prediction stops
+}
+
+/* ---------------- painting ---------------- */
+function paintPad(action) {
+  document.querySelectorAll(".cell").forEach(el => el.classList.remove("live"));
+  if (action && PAD_AREA[action]) {
+    const el = document.querySelector(`.cell[data-area="${PAD_AREA[action]}"]`);
+    if (el) el.classList.add("live");
+  }
+}
+function paintReadout(winner, conf, action) {
+  const ro = $("#readout");
+  ro.classList.add("show");
+  $("#roSwatch").style.background = actionColor(action);
+  $("#roLabel").textContent = winner.label + (action === "stop" && conf < threshold ? "  (unsure → stop)" : "");
+  $("#roPct").textContent = Math.round(conf * 100) + "%";
+}
+function renderBars() {
+  bars.innerHTML = classes.map(c => `
+    <div class="bar-row" data-id="${c.id}">
+      <span class="name" style="color:${actionColor(c.action)}">${escapeHtml(c.label)}</span>
+      <span class="val">0%</span>
+      <div class="track"><span style="background:${actionColor(c.action)}"></span></div>
+    </div>`).join("");
+}
+function paintBars(confidences) {
+  classes.forEach(c => {
+    const row = bars.querySelector(`.bar-row[data-id="${c.id}"]`);
+    if (!row) return;
+    const v = Math.round((confidences[c.id] || 0) * 100);
+    row.querySelector(".val").textContent = v + "%";
+    row.querySelector(".track > span").style.width = v + "%";
+  });
+}
+let hintTimer;
+function flashHint(msg) {
+  const ro = $("#readout"); ro.classList.add("show");
+  $("#roSwatch").style.background = "var(--idle)";
+  $("#roLabel").textContent = msg; $("#roPct").textContent = "";
+  clearTimeout(hintTimer); hintTimer = setTimeout(() => ro.classList.remove("show"), 1800);
+}
+
+/* ---------------- camera ---------------- */
+$("#startCam").addEventListener("click", async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    $("#camPlaceholder").style.display = "none";
+    video.style.display = "block";
+    camReady = true; camDot.classList.add("on");
+    $("#startCam").textContent = "Camera on";
+    $("#startCam").disabled = true;
+    updatePredictReady();
+  } catch (e) {
+    camDot.classList.add("err");
+    alert("Couldn't open the camera. Make sure you served this page over http://localhost (not file://) and allowed camera access.");
+  }
+});
+
+/* ---------------- predict button ---------------- */
+$("#predictBtn").addEventListener("click", () => predicting ? stopPredicting() : startPredicting());
+
+/* ---------------- threshold ---------------- */
+$("#thresh").addEventListener("input", e => {
+  threshold = parseFloat(e.target.value);
+  $("#threshVal").textContent = Math.round(threshold * 100) + "%";
+});
+
+/* ---------------- add class ---------------- */
+$("#addClass").addEventListener("click", () => {
+  classes.push({ id: id(), label: "New move", action: "stop", count: 0 });
+  renderClasses();
+});
+
+/* ---------------- car: shared helpers ---------------- */
+function carConnected() {
+  if (car.transport === "ble") return car.device && car.device.gatt.connected;
+  if (car.transport === "ws")  return car.ws && car.ws.readyState === 1;
+  return false;
+}
+
+// Serialize BLE writes so two never race; fall back across write modes.
+function sendRPC(bytes) {
+  rpcQueue = rpcQueue.then(async () => {
+    if (!car.writeChar) return;
+    const data = new Uint8Array(bytes);
+    try {
+      if (car.writeChar.writeValueWithoutResponse) await car.writeChar.writeValueWithoutResponse(data);
+      else await car.writeChar.writeValue(data);
+    } catch (e) {
+      try { await car.writeChar.writeValueWithResponse(data); } catch (e2) {}
+    }
+  });
+  return rpcQueue;
+}
+
+// Which spin direction is "forward" for a given side depends on how the motor
+// is mounted — the Reverse toggles in Car setup flip it. This is the only
+// build-specific bit; everything else is the confirmed fd02 protocol.
+function sideDir(bits, forward) {
+  const inv = bits === BITS_LEFT ? car.invertLeft : car.invertRight;
+  const base = forward ? DIR_CW : DIR_CCW;
+  return inv ? (base ^ 1) : base;
+}
+function runSide(bits, forward) {
+  sendRPC([M_SPEED, bits, car.speed & 0xFF]);
+  sendRPC([M_RUN, bits, sideDir(bits, forward)]);
+}
+function stopAll() { sendRPC([M_STOP, BITS_BOTH]); }
+
+function applyActionBLE(action) {
+  switch (action) {
+    case "forward":  runSide(BITS_LEFT, true);  runSide(BITS_RIGHT, true);  break;
+    case "backward": runSide(BITS_LEFT, false); runSide(BITS_RIGHT, false); break;
+    case "left":     runSide(BITS_LEFT, false); runSide(BITS_RIGHT, true);  break; // pivot left
+    case "right":    runSide(BITS_LEFT, true);  runSide(BITS_RIGHT, false); break; // pivot right
+    default:         stopAll();
+  }
+}
+
+// Route each prediction to whichever transport is live. Called by the loop.
+function streamToCar(action, label, conf) {
+  if (!carConnected()) return;
+  if (action === car.lastAction) return;   // send only on change -> calm BLE
+  car.lastAction = action;
+  if (car.transport === "ble") applyActionBLE(action);
+  else car.ws.send(JSON.stringify({ type:"prediction", action, label, confidence:Number(conf.toFixed(3)), ts:Date.now() }));
+}
+
+/* ---------------- car: direct Bluetooth ---------------- */
+function onCarDrop() {
+  carDot.classList.remove("on");
+  $("#bleBtn").textContent = "Connect car (Bluetooth)";
+  car.transport = null; car.lastAction = null;
+}
+$("#bleBtn").addEventListener("click", async () => {
+  if (car.transport === "ble" && carConnected()) { car.device.gatt.disconnect(); return; }
+  if (!navigator.bluetooth) {
+    alert("This browser has no Web Bluetooth. Use Chrome or Edge on a laptop/desktop, or the Python bridge (link in Car setup).");
+    return;
+  }
+  try {
+    carDot.classList.remove("on","err");
+    car.device = await navigator.bluetooth.requestDevice({ filters:[{ services:[LE_SERVICE] }] });
+    car.device.addEventListener("gattserverdisconnected", onCarDrop);
+    const server  = await car.device.gatt.connect();
+    const service = await server.getPrimaryService(LE_SERVICE);
+    car.writeChar = await service.getCharacteristic(LE_WRITE);
+    await sendRPC([M_PROGRAM, PROGRAM_START]);   // wake the command processor
+    stopAll();
+    car.transport = "ble"; car.lastAction = null;
+    carDot.classList.add("on");
+    $("#bleBtn").textContent = "Disconnect car";
+  } catch (err) {
+    if (err.name !== "NotFoundError") {          // NotFoundError = user closed the chooser
+      carDot.classList.add("err");
+      alert("Bluetooth connection failed: " + err.message + "\nMake sure the Double Motor is charged, on, and broadcasting.");
+    }
+  }
+});
+
+/* ---------------- car: Python bridge fallback ---------------- */
+$("#showBridge").addEventListener("click", e => { e.preventDefault(); $("#bridgeRow").style.display = "flex"; });
+$("#wsBtn").addEventListener("click", () => {
+  if (car.transport === "ws" && carConnected()) { car.ws.close(); return; }
+  try { car.ws = new WebSocket($("#wsUrl").value.trim()); } catch (e) { carDot.classList.add("err"); return; }
+  car.ws.onopen  = () => { carDot.classList.remove("err"); carDot.classList.add("on"); car.transport = "ws"; car.lastAction = null; $("#wsBtn").textContent = "Disconnect bridge"; };
+  car.ws.onclose = () => { carDot.classList.remove("on"); $("#wsBtn").textContent = "Connect bridge"; if (car.transport === "ws") car.transport = null; };
+  car.ws.onerror = () => { carDot.classList.add("err"); };
+});
+
+/* ---------------- car: setup / calibration ---------------- */
+$("#speed").addEventListener("input", e => { car.speed = parseInt(e.target.value, 10); $("#speedVal").textContent = car.speed; });
+$("#invLeft").addEventListener("change",  e => { car.invertLeft  = e.target.checked; });
+$("#invRight").addEventListener("change", e => { car.invertRight = e.target.checked; });
+let testTimer = null;
+function testPulse(bits) {
+  if (car.transport !== "ble" || !carConnected()) { alert("Connect the car over Bluetooth first."); return; }
+  clearTimeout(testTimer); car.lastAction = null;
+  runSide(bits, true);
+  testTimer = setTimeout(stopAll, 700);
+}
+$("#testLeft").addEventListener("click",  () => testPulse(BITS_LEFT));
+$("#testRight").addEventListener("click", () => testPulse(BITS_RIGHT));
+$("#testStop").addEventListener("click",  () => { clearTimeout(testTimer); stopAll(); });
+
+/* ---------------- init ---------------- */
+renderClasses();
+window.addEventListener("beforeunload", () => { try { streamToCar("stop","(closing)",1); } catch(_){} });
+</script>
+</body>
+</html>
