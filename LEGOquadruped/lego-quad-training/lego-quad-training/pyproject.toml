@@ -1,0 +1,25 @@
+[project]
+name = "lego-cpu-projects"
+version = "0.1.0"
+description = "CPU/SB3 training track for the LEGO quadruped (independent of the mjlab GPU track)"
+requires-python = ">=3.11"
+dependencies = [
+  "stable-baselines3>=2.3",
+  "gymnasium>=0.29",
+  "mujoco>=3.0",
+  "numpy",
+  "torch",
+  "tqdm",
+  "rich",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
