@@ -67,6 +67,19 @@ def save_frame(cls, frame):
     print(f"Saved {path}")
 
 
+def draw_readable_text(img, text, org, font_scale, color, thickness):
+    """Draw text over a thin translucent dark bar so it stays legible
+    against busy/bright backgrounds, without a big opaque block."""
+    (tw, th), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+    x, y = org
+    pad = 4
+    overlay = img.copy()
+    cv2.rectangle(overlay, (x - pad, y - th - pad), (x + tw + pad, y + baseline + pad),
+                  (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.55, img, 0.45, 0, img)
+    cv2.putText(img, text, org, cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness, cv2.LINE_AA)
+
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -79,18 +92,17 @@ while True:
     display = frame.copy()
 
     label = current_class or "— press 1-5 to select a class"
-    cv2.putText(display, f"Class: {label}", (10, 32),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 80), 2)
+    draw_readable_text(display, f"Class: {label}", (10, 32), 0.9, (0, 255, 80), 2)
     for i, cls in enumerate(GESTURE_CLASSES):
-        cv2.putText(display, f"  {i + 1}: {cls}  ({counts[cls]} saved)",
-                    (10, 62 + i * 26), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (200, 200, 200), 1)
-    cv2.putText(display, "Space = timed burst  |  Enter = tap/hold  |  Q = quit",
-                (10, display.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (150, 150, 150), 1)
+        draw_readable_text(display, f"  {i + 1}: {cls}  ({counts[cls]} saved)",
+                            (10, 62 + i * 26), 0.55, (220, 220, 220), 1)
+    draw_readable_text(display, "Space = timed burst  |  Enter = tap/hold  |  Q = quit",
+                        (10, display.shape[0] - 10), 0.5, (235, 235, 235), 1)
 
     if recording:
         remaining = TIMER_DURATION_SEC - (now - recording_start)
-        cv2.putText(display, f"RECORDING  {max(remaining, 0):.1f}s left",
-                    (10, display.shape[0] - 34), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        draw_readable_text(display, f"RECORDING  {max(remaining, 0):.1f}s left",
+                            (10, display.shape[0] - 36), 0.62, (60, 60, 255), 2)
 
     cv2.imshow("Collect Data", display)
     key = cv2.waitKey(1) & 0xFF
