@@ -21,6 +21,7 @@ from torchvision import transforms
 from config import CAMERA, SERIAL, CONFIDENCE_THRESHOLD
 from model import build_model, MOTOR_MAP
 from lelib import doubleMotor
+from camlib import pick_camera
 
 MODEL_PATH = "symbol_model.pt"
 
@@ -45,12 +46,11 @@ print("Connecting to double motor...")
 dm.connect(SERIAL)
 print("Connected.\n")
 
-print(f"Connecting to camera: {CAMERA}")
-cap = cv2.VideoCapture(CAMERA)
-if not cap.isOpened():
+try:
+    cap = pick_camera(default_camera=CAMERA)
+except RuntimeError:
     dm.stop()
-    raise RuntimeError(f"Could not open camera: {CAMERA}\n"
-                       "Check the IP address in config.py and that the app is running.")
+    raise
 print("Camera connected. Place a sketch card under the robot. Press Q to quit.\n")
 
 try:
