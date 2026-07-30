@@ -1,1 +1,1 @@
-
+We explored microcontrollers, sensors, and audio sources to help design a hands-on coding curriculum where students learn Python by building electronic instruments and performing together as an orchestra :)
