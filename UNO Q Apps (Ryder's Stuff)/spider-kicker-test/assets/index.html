@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spider Kicker</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+  </head>
+  <body>
+    <h1>Spider Kicker</h1>
+
+    <img id="video-feed" src="/video_feed" alt="Live camera feed with detection overlay" />
+
+    <div id="autonomous-toggle">
+      <label class="switch">
+        <input type="checkbox" id="autonomous-checkbox" />
+        <span>Autonomous tracking</span>
+      </label>
+      <span id="autonomous-state">OFF</span>
+    </div>
+
+    <div id="tracking-status">
+      <div>Calibrated: <span id="calibrated">--</span></div>
+      <div>Platform detected: <span id="platform-detected">--</span></div>
+      <div>Ball detected: <span id="ball-detected">--</span></div>
+      <div>Cycle phase: <span id="cycle-phase">--</span></div>
+      <div>Ball samples: <span id="ball-samples">--</span></div>
+      <div>Target (mm): <span id="cycle-target">--</span></div>
+      <div>Verify error (mm): <span id="verify-error">--</span></div>
+      <div>Verify retries: <span id="verify-retries">--</span></div>
+      <div>Last kick: <span id="last-kick">--</span></div>
+    </div>
+
+    <p class="debug-link"><a href="#" id="debug-toggle-link">Show manual/debug controls</a></p>
+
+    <div id="debug-panel" style="display: none">
+      <p class="instruction-text">Enter a target camera position (mm) and press Move, or nudge an axis below.</p>
+
+      <form id="move-form">
+        <label>x <input type="number" id="x" step="any" required /></label>
+        <label>y <input type="number" id="y" step="any" required /></label>
+        <button type="submit">Move</button>
+        <button type="button" id="home-button">Home</button>
+        <button type="button" id="reset-home-button" title="Sets wherever the platform physically is right now as the new HOME_POSITION.">Reset Home</button>
+      </form>
+
+      <div id="position-readout">x: -- &nbsp; y: -- &nbsp; z: --</div>
+
+      <div id="nudge-controls">
+        <div class="nudge-row">
+          <span class="nudge-label">x</span>
+          <button type="button" class="nudge-button" data-axis="x" data-sign="-1">−</button>
+          <button type="button" class="nudge-button" data-axis="x" data-sign="1">+</button>
+        </div>
+        <div class="nudge-row">
+          <span class="nudge-label">y</span>
+          <button type="button" class="nudge-button" data-axis="y" data-sign="-1">−</button>
+          <button type="button" class="nudge-button" data-axis="y" data-sign="1">+</button>
+        </div>
+        <div class="nudge-row">
+          <span class="nudge-label">z</span>
+          <button type="button" class="nudge-button" data-axis="z" data-sign="-1">−</button>
+          <button type="button" class="nudge-button" data-axis="z" data-sign="1">+</button>
+        </div>
+      </div>
+
+      <div id="status"></div>
+
+      <h2>Manual winch control</h2>
+      <p class="instruction-text">Jog a winch by a fixed step - useful for rigging cable or checking direction.</p>
+
+      <div id="jog-controls">
+        <div class="jog-row">
+          <span class="jog-label">Motor 1</span>
+          <button type="button" class="jog-button" data-motor="0" data-reel-in="true">◀ Reel In</button>
+          <button type="button" class="jog-button" data-motor="0" data-reel-in="false">Reel Out ▶</button>
+        </div>
+        <div class="jog-row">
+          <span class="jog-label">Motor 2</span>
+          <button type="button" class="jog-button" data-motor="1" data-reel-in="true">◀ Reel In</button>
+          <button type="button" class="jog-button" data-motor="1" data-reel-in="false">Reel Out ▶</button>
+        </div>
+        <div class="jog-row">
+          <span class="jog-label">Motor 3</span>
+          <button type="button" class="jog-button" data-motor="2" data-reel-in="true">◀ Reel In</button>
+          <button type="button" class="jog-button" data-motor="2" data-reel-in="false">Reel Out ▶</button>
+        </div>
+        <div class="jog-row">
+          <span class="jog-label">Motor 4</span>
+          <button type="button" class="jog-button" data-motor="3" data-reel-in="true">◀ Reel In</button>
+          <button type="button" class="jog-button" data-motor="3" data-reel-in="false">Reel Out ▶</button>
+        </div>
+      </div>
+
+      <h2>Kicker</h2>
+      <p class="instruction-text">Runs the kicker motor at full speed for 1.5 rotations.</p>
+      <button type="button" id="kick-button">Kick!</button>
+
+      <h2>Camera exposure</h2>
+      <p class="instruction-text">Manual exposure reduces glare/washout - tune live while watching the feed above.</p>
+      <label><input type="checkbox" id="exposure-manual-checkbox" /> Manual exposure</label>
+      <div class="nudge-row">
+        <input type="range" id="exposure-slider" min="1" max="5000" value="78" />
+        <span id="exposure-value">78</span>
+      </div>
+    </div>
+
+    <div id="error-container" class="error-message" style="display: none"></div>
+
+    <script src="libs/socket.io.min.js"></script>
+    <script src="libs/arduino.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

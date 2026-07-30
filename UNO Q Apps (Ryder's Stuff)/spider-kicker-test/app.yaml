@@ -1,0 +1,8 @@
+name: Spider Kicker test
+description: ""
+ports: []
+bricks:
+- arduino:web_ui: {}
+- arduino:object_detection:
+    model: ei-model-1065240-6
+icon: 😛
