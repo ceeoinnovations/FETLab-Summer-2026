@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Person Detector</title>
+<style>
+  body {
+    margin: 0;
+    background: #111;
+    color: #eee;
+    font-family: system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+  }
+  h1 { font-size: 1.2rem; font-weight: 600; }
+  img {
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid #333;
+  }
+  #status {
+    margin-top: 16px;
+    font-size: 1rem;
+  }
+  #status.detected { color: #4caf50; font-weight: 600; }
+  #stats {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    gap: 8px 20px;
+    font-size: 0.85rem;
+    color: #aaa;
+  }
+  #stats .value {
+    color: #eee;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+  <h1>Live Person Detector</h1>
+  <img src="/video_feed" alt="camera feed">
+  <div id="status">Waiting for detections…</div>
+
+  <div id="stats">
+    <div>FPS <span class="value" id="stat-fps">–</span></div>
+    <div>App CPU <span class="value" id="stat-proc-cpu">–</span></div>
+    <div>App Mem <span class="value" id="stat-proc-mem">–</span></div>
+    <div>System CPU <span class="value" id="stat-sys-cpu">–</span></div>
+    <div>System Mem <span class="value" id="stat-sys-mem">–</span></div>
+  </div>
+
+  <script>
+    async function pollStatus() {
+      try {
+        const res = await fetch("/status");
+        const data = await res.json();
+
+        const el = document.getElementById("status");
+        if (data.person_detected) {
+          el.textContent = `Person detected (${data.count})`;
+          el.classList.add("detected");
+        } else {
+          el.textContent = "No person detected";
+          el.classList.remove("detected");
+        }
+
+        document.getElementById("stat-fps").textContent = data.fps;
+        document.getElementById("stat-proc-cpu").textContent = `${data.process_cpu_percent}%`;
+        document.getElementById("stat-proc-mem").textContent = `${data.process_memory_mb} MB`;
+        document.getElementById("stat-sys-cpu").textContent = `${data.system_cpu_percent}%`;
+        document.getElementById("stat-sys-mem").textContent = `${data.system_memory_percent}%`;
+      } catch (e) {
+        // ignore transient errors while the board is starting up
+      }
+    }
+    setInterval(pollStatus, 500);
+    pollStatus();
+  </script>
+</body>
+</html>

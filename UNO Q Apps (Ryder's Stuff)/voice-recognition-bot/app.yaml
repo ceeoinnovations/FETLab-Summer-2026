@@ -1,0 +1,7 @@
+name: Voice Recognition Bot
+description: ""
+ports: []
+bricks:
+- arduino:keyword_spotting:
+    model: ei-model-1033638-2
+icon: 😀

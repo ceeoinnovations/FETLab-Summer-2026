@@ -1,0 +1,4 @@
+opencv-python-headless==4.13.0.*
+numpy
+psutil
+ai-edge-litert

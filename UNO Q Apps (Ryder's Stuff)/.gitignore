@@ -1,0 +1,16 @@
+# Arduino App build cache
+.cache/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+myvenv/
+myenv/
+
+# Crash dumps
+core.*
+
+# Local Claude Code settings
+.claude/

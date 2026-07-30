@@ -1,0 +1,6 @@
+name: Speaker Test
+description: ""
+ports: []
+bricks:
+- arduino:sound_generator: {}
+icon: 😀
