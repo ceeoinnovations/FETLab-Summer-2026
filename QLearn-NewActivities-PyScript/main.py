@@ -836,9 +836,9 @@ MAX_STEPS_MAZE = 100        # overwritten by apply_maze_rewards() from its "Max 
 REST_TIME_MAZE = 0.4        # overwritten by apply_maze_rewards() from its "Rest Time" slider
 
 def discretize_yaw_maze(yaw_degrees):
-    if yaw_degrees < -YAW_DEADBAND_MAZE:
+    if yaw_degrees > YAW_DEADBAND_MAZE:
         return 0  # drifted left
-    elif yaw_degrees > YAW_DEADBAND_MAZE:
+    elif yaw_degrees < -YAW_DEADBAND_MAZE:
         return 2  # drifted right
     return 1  # roughly straight
 
