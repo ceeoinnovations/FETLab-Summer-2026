@@ -1,1 +1,2 @@
 We explored microcontrollers, sensors, and audio sources to help design a hands-on coding curriculum where students learn Python by building electronic instruments and performing together as an orchestra :)
+Notes: 1) WIFI name and password will need to be updated 2) Pi has dynamic IP address so also needs to be updated 3) Video of example builds is on Chris's Notion : https://app.notion.com/p/ES2-Final-Notion-Page-39d2f91361d38080884ae678d3208aa6
