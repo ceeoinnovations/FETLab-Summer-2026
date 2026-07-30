@@ -1,0 +1,6 @@
+- Maintinance workers paid minimum wage (motor failiure chance 10%)
+- Programmer types 120 words per minute (9-14 instructions)
+- Hacker connects with secure wifi (max 7 changes)
+- Programmer can handle technology (4 hashes, partial graph)
+- Programmer got to work just on time (1.5m/1.5m/4m timers)
+- 2x multiplier

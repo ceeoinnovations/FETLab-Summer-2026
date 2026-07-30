@@ -1,0 +1,6 @@
+1. Write a sequence of instructions to move the robot around.
+2. The robot will follow these instructions later.
+
+You will be able to see the initial moves you put in later.
+Left/Right does not physically move the robot, only rotate it in place
+If you run out of time, your move set will be submitted as is.

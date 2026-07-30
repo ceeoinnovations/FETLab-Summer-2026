@@ -1,0 +1,6 @@
+- Maintinance workers fired (motor failiure chance 20%)
+- Programmer vibe codes (12-16 instructions)
+- Hacker uses satalite connections (unlimited changes)
+- Programmer is a grandma (3 hashes, limited graph)
+- Programmer is late to work (1m/1m/3m timers)
+- 3x multiplier

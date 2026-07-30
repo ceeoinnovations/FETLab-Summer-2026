@@ -1,0 +1,6 @@
+- Maintinance workers treated like kings (motor failiure chance 5%)
+- Programmer has carpal tunnel (5-10 instructions)
+- Hacker connects to coffee shop wifi (max 5 changes)
+- Programmer is tech savvy (5 hashes, full graph)
+- Programmer arrived early to work (2m/2m/5m timers)
+- 1x multiplier

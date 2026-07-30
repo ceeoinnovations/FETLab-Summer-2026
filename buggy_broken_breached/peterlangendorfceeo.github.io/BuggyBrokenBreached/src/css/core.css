@@ -1,0 +1,295 @@
+:root {
+    --bg-color: #05070a;
+    --bg-color-deep: #030405;
+    --panel-bg: rgba(15, 20, 27, 0.68);
+    --panel-bg-solid: #10141c;
+    --neon-green: #2dffa3;
+    --neon-green-dim: rgba(45, 255, 163, 0.12);
+    --neon-red: #ff2e5b;
+    --neon-cyan: #21e3ff;
+    --dark-cyan: #0d8aa3;
+    --border-color: rgba(94, 122, 145, 0.22);
+    --disabled-grey: #4a4a4a;
+    --text-main: #dce4ea;
+    --text-dim: #8291a0;
+    --wipe-x: 50%;
+    --wipe-y: 50%;
+    --font-display: 'Chakra Petch', 'Share Tech Mono', monospace;
+    --font-mono: 'Share Tech Mono', monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: var(--font-mono);
+    padding: 20px;
+    color: var(--text-main);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+    box-sizing: border-box;
+    background:
+        radial-gradient(ellipse 900px 500px at 15% -10%, rgba(45, 255, 163, 0.07), transparent 60%),
+        radial-gradient(ellipse 900px 600px at 105% 10%, rgba(33, 227, 255, 0.06), transparent 55%),
+        linear-gradient(180deg, var(--bg-color) 0%, var(--bg-color-deep) 100%);
+    transition: background 0.6s ease;
+}
+
+body.hacker-mode {
+    --bg-color: #0a0306;
+    --bg-color-deep: #050203;
+    --panel-bg: rgba(24, 12, 15, 0.68);
+    --panel-bg-solid: #170c0f;
+    --neon-green: #ff3a63;
+    --neon-cyan: #ff3a63;
+    --border-color: rgba(255, 58, 99, 0.22);
+    background:
+        radial-gradient(ellipse 900px 500px at 15% -10%, rgba(255, 46, 91, 0.09), transparent 60%),
+        radial-gradient(ellipse 900px 600px at 105% 10%, rgba(255, 46, 91, 0.07), transparent 55%),
+        linear-gradient(180deg, var(--bg-color) 0%, var(--bg-color-deep) 100%);
+}
+
+body.hacker-mode .game-title {
+    text-shadow: 0 0 4px rgba(255, 58, 99, 0.9), 0 0 24px rgba(255, 58, 99, 0.45);
+    color: var(--neon-red);
+}
+
+h1.game-title {
+    flex-shrink: 0;
+    color: var(--neon-cyan);
+    text-transform: uppercase;
+    letter-spacing: 5px;
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 2.15em;
+    text-shadow: 0 0 4px rgba(33, 227, 255, 0.8), 0 0 26px rgba(33, 227, 255, 0.35);
+}
+
+/* --- FULL SCREEN CONTAINER LAYOUTS --- */
+.container {
+    display: flex;
+    gap: 20px;
+    max-width: 1400px;
+    width: 100%;
+    align-items: stretch;
+    justify-content: center;
+    flex-grow: 1;
+    min-height: 0;
+    padding-bottom: 60px; /* Space for footer */
+}
+
+.col {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    flex: 1;
+    min-height: 0;
+}
+
+.panel {
+    position: relative;
+    background: var(--panel-bg);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    padding: 28px 30px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    box-shadow:
+        0 20px 50px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    overflow-y: auto;
+}
+
+.panel::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: 10px 10px 0 0;
+    background: linear-gradient(90deg, transparent, var(--neon-green) 25%, var(--neon-cyan) 75%, transparent);
+    opacity: 0.85;
+}
+
+.panel-fit { flex: none; }
+.panel-center { max-width: 800px; width: 100%; margin: 0 auto; }
+
+h3 {
+    margin-top: 0;
+    flex-shrink: 0;
+    color: var(--neon-green);
+    text-transform: uppercase;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.25em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 14px;
+    letter-spacing: 1.5px;
+}
+
+/* --- STANDARDIZED BUTTONS --- */
+button {
+    padding: 15px 20px;
+    cursor: pointer;
+    border: 1.5px solid var(--neon-green);
+    border-radius: 6px;
+    background: linear-gradient(180deg, rgba(45, 255, 163, 0.08), rgba(45, 255, 163, 0.02));
+    color: var(--neon-green);
+    font-family: var(--font-mono);
+    font-size: 1.05em;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+button::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.15) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 0.5s ease;
+    pointer-events: none;
+}
+
+button:hover:not(:disabled)::after { transform: translateX(120%); }
+
+button:hover:not(:disabled) {
+    background: var(--neon-green);
+    color: #05070a;
+    box-shadow: 0 0 24px rgba(45, 255, 163, 0.45), 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px);
+    border-color: var(--neon-green);
+}
+
+button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+/* Greyed Out Unpressable State */
+button:disabled {
+    background: rgba(74, 74, 74, 0.08) !important;
+    color: var(--disabled-grey) !important;
+    border-color: rgba(74, 74, 74, 0.5) !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+/* Hacker Theme Overrides */
+body.hacker-mode button:not(.btn-success):not(:disabled) {
+    border-color: var(--neon-red);
+    color: var(--neon-red);
+    background: linear-gradient(180deg, rgba(255, 46, 91, 0.08), rgba(255, 46, 91, 0.02));
+}
+body.hacker-mode button:hover:not(.btn-success):not(:disabled) {
+    background: var(--neon-red);
+    color: #0a0306;
+    box-shadow: 0 0 24px rgba(255, 46, 91, 0.5), 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Pressed / Dark Cyan State for Tools */
+.btn-pressed, .active-tool {
+    background: rgba(13, 138, 163, 0.18) !important;
+    border-color: var(--dark-cyan) !important;
+    color: var(--neon-cyan) !important;
+    box-shadow: inset 0 0 15px rgba(33, 227, 255, 0.12) !important;
+}
+
+/* Specific Action Overrides */
+#btn-remove, #btn-clear { border-color: rgba(150, 150, 150, 0.5); color: #9aa4ac; background: transparent; }
+#btn-remove:hover, #btn-clear:hover { background: #9aa4ac; color: #05070a; box-shadow: none; border-color: #9aa4ac; }
+
+.btn-success {
+    background: linear-gradient(180deg, rgba(33, 227, 255, 0.10), rgba(33, 227, 255, 0.02));
+    color: var(--neon-cyan);
+    border: 1.5px solid var(--neon-cyan);
+    width: 100%;
+    margin-top: 15px;
+    padding: 20px;
+    font-size: 1.15em;
+    flex-shrink: 0;
+}
+.btn-success:hover:not(:disabled) {
+    background: var(--neon-cyan);
+    color: #05070a;
+    box-shadow: 0 0 28px rgba(33, 227, 255, 0.5), 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+body.hacker-mode .btn-success { background: linear-gradient(180deg, rgba(255, 46, 91, 0.10), rgba(255, 46, 91, 0.02)); }
+
+/* Grid specific sizing */
+.btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: minmax(70px, auto); /* Makes directional buttons massive */
+    gap: 14px;
+    margin-bottom: 20px;
+    flex-shrink: 0;
+}
+.btn-grid.no-margin { margin-bottom: 0; grid-auto-rows: minmax(60px, auto); }
+
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); border-radius: 5px; }
+::-webkit-scrollbar-thumb { background: #3a4652; border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--neon-cyan); background-clip: content-box; }
+body.hacker-mode ::-webkit-scrollbar-thumb:hover { background: var(--neon-red); background-clip: content-box; }
+
+#footer-status {
+    position: fixed;
+    bottom: 0; left: 0; width: 100%;
+    background: rgba(6, 8, 11, 0.85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--border-color);
+    padding: 15px 30px;
+    text-align: center; color: var(--text-dim);
+    z-index: 100;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.6);
+    font-size: 1.05em;
+    letter-spacing: 0.3px;
+}
+.py-overlay { display: none !important; }
+
+/* Backgrounds */
+#matrix-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -2; pointer-events: none; }
+#grid-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none;
+    background-image:
+        repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.012) 0px, rgba(255, 255, 255, 0.012) 1px, transparent 1px, transparent 3px),
+        linear-gradient(rgba(45, 255, 163, 0.028) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(45, 255, 163, 0.028) 1px, transparent 1px);
+    background-size: 100% 3px, 40px 40px, 40px 40px;
+}
+body.hacker-mode #grid-overlay {
+    background-image:
+        repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.012) 0px, rgba(255, 255, 255, 0.012) 1px, transparent 1px, transparent 3px),
+        linear-gradient(rgba(255, 46, 91, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 46, 91, 0.035) 1px, transparent 1px);
+}
+
+/* Boot screen */
+#loading-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(ellipse at center, #0b1219 0%, var(--bg-color-deep) 100%); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.8s ease-in-out; }
+.fade-out { opacity: 0; pointer-events: none; }
+.loader-title { color: var(--neon-cyan); font-family: var(--font-display); font-weight: 700; font-size: 2.3em; letter-spacing: 5px; margin-bottom: 32px; text-shadow: 0 0 4px rgba(33,240,255,0.8), 0 0 30px rgba(33, 240, 255, 0.4); text-transform: uppercase; }
+.progress-box { width: 500px; border: 1.5px solid var(--neon-green); padding: 4px; box-shadow: 0 0 18px rgba(45, 255, 163, 0.25); border-radius: 6px; background: rgba(0,0,0,0.3);}
+.progress-fill { height: 18px; background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan)); width: 0%; animation: fillBar 10s cubic-bezier(0.1, 0.7, 0.1, 1) forwards; box-shadow: 0 0 15px rgba(45, 255, 163, 0.8); border-radius: 3px;}
+.loader-log { margin-top: 20px; color: var(--neon-green); font-size: 1.1em; letter-spacing: 0.5px; }
+.loader-log::after { content: "> Establishing secure link..."; animation: logSequence 6s infinite; }
+
+@keyframes fillBar { 0% { width: 0%; } 20% { width: 30%; } 40% { width: 45%; } 60% { width: 80%; } 95% { width: 95%; } 100% { width: 96%; } }
+@keyframes logSequence { 0% { content: "> Bypassing mainframe security..."; } 20% { content: "> Downloading Python environment..."; } 40% { content: "> Decrypting hardware protocols..."; } 60% { content: "> Compiling WebAssembly binaries..."; } 80% { content: "> Injecting Pyodide Runtime..."; } 100% { content: "> Bypassing mainframe security..."; } }

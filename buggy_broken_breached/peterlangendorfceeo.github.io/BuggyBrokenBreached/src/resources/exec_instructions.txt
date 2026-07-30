@@ -1,0 +1,7 @@
+1. Execute the instructions on the robot.
+2. Pay close attention to what may have changed from the programmer's original instructions.
+3. Watch out for MOTOR FAILIURES - sometimes a motor will stop moving for a move.
+4. Use the SENSOR GRPAH and the MEMORY AUDIT to double check your theories.
+5. Submit a FINAL REPORT that summarizes what the hacker has changed and when the motors broke down.
+
+Pay attention to the move sequence! You can only watch it once.

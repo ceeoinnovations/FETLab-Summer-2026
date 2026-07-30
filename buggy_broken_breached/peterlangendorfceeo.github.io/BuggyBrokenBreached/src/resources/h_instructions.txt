@@ -1,0 +1,10 @@
+1. Modify the programmer's instructions
+2. You can REPLACE an instruction with a different one
+3. You can DELETE an instruction that the programmer left
+4. Change the SETTINGS OF THE ROBOT to modify its movement
+
+There is no maximum amount of moves that you can change
+Try to keep your changes subtle so that the programmer cannot easily figure out what you have changed
+Forward speed & backward speed control how fast it goes, not how far it moves
+Left/Right angle control how much it turns
+Left/Right speed control how fast it turns
