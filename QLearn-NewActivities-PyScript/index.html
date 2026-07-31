@@ -104,17 +104,6 @@
     gap: 10px;
   }
   .qtable-header-row h2 { margin: 0; }
-  .show-arrows-control {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 8px;
-  }
-  .show-arrows-control label {
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-  }
   .state-count-control {
     display: flex;
     align-items: center;
@@ -139,29 +128,6 @@
     min-width: 340px;
     min-height: 180px;
     max-width: 100%;
-  }
-
-  /* Transition arrow overlay: draws a from-state -> action -> to-state path
-     each training step, alongside the existing row highlight/cell pulse. */
-  .arrow-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    pointer-events: none;
-    overflow: visible;
-    z-index: 5;
-  }
-  .arrow-overlay path.arrow-path {
-    fill: none;
-    stroke: #3b82f6;
-    stroke-width: 2.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-  }
-  .arrow-overlay path.arrow-path.visible {
-    opacity: 1;
   }
 
   /* Q-Table */
@@ -773,10 +739,6 @@
       <div class="qtable-header-row">
         <div>
           <h2>Q-Table</h2>
-          <div class="show-arrows-control">
-            <input type="checkbox" id="show-arrows-toggle" checked onchange="toggleArrowVisibility(this)" style="width: auto;">
-            <label for="show-arrows-toggle">Show transition path</label>
-          </div>
         </div>
         <div class="qtable-controls">
           <div class="state-count-control">
@@ -804,7 +766,6 @@
             <!-- Rows injected by rebuildStateUI() -->
           </tbody>
         </table>
-        <svg id="qtable-arrow-overlay" class="arrow-overlay"></svg>
       </div>
 
       <div class="bellman-box" id="bellman-readout">
@@ -1394,118 +1355,6 @@
   // the Q-table header is rebuilt (see note in rebuildQTableHead).
   window.requestManualAction = function(actionName) {
     document.dispatchEvent(new CustomEvent('manual-action', { detail: { action: actionName } }));
-  };
-
-  // ── Transition arrow: from-state -> action -> to-state ──
-  // Draws a 2-segment path each training step, from the "from" state's
-  // row-label cell, through the action cell being updated, to the "to"
-  // state's row-label cell — a visual complement to the existing row
-  // highlight (color) and cell pulse (glow).
-  const SVG_NS = 'http://www.w3.org/2000/svg';
-
-  // Toggled by the "Show transition path" checkbox next to the Q-table.
-  // Python still calls drawTransitionArrow() every step regardless of this
-  // flag — it just becomes a no-op when the path is turned off, so no
-  // Python changes are needed to support this toggle.
-  let showTransitionArrows = true;
-  window.toggleArrowVisibility = function(checkbox) {
-    showTransitionArrows = checkbox.checked;
-    if (!showTransitionArrows) {
-      window.clearTransitionArrow();
-    }
-  };
-
-  window.drawTransitionArrow = function(fromRowIdx, colIdx, toRowIdx, durationMs) {
-    if (!showTransitionArrows) return;
-    const wrapper = document.getElementById('qtable-wrapper');
-    const table = document.getElementById('qtable');
-    const tbody = document.getElementById('qtable-body');
-    const svg = document.getElementById('qtable-arrow-overlay');
-    if (!wrapper || !table || !tbody || !svg) {
-      console.warn('[arrow] missing element:', { wrapper: !!wrapper, table: !!table, tbody: !!tbody, svg: !!svg });
-      return;
-    }
-    if (!tbody.rows[fromRowIdx] || !tbody.rows[toRowIdx]) {
-      console.warn('[arrow] missing row:', { fromRowIdx, toRowIdx, rowCount: tbody.rows.length });
-      return;
-    }
-
-    // Row 0 has an extra leading cell (the rowspan'd axis-label) — same
-    // offset logic used by updateCell/highlightStateRow/pulseCell.
-    const fromCell = tbody.rows[fromRowIdx].cells[fromRowIdx === 0 ? 1 : 0];
-    const toCell = tbody.rows[toRowIdx].cells[toRowIdx === 0 ? 1 : 0];
-    const actionCell = tbody.rows[fromRowIdx].cells[colIdx + (fromRowIdx === 0 ? 2 : 1)];
-    if (!fromCell || !toCell || !actionCell) {
-      console.warn('[arrow] missing cell:', { fromCell: !!fromCell, toCell: !!toCell, actionCell: !!actionCell, fromRowIdx, colIdx, toRowIdx });
-      return;
-    }
-
-    // Size the SVG to the table's full content (not just the wrapper's
-    // visible viewport), so the overlay scrolls correctly with the table.
-    const contentWidth = table.scrollWidth;
-    const contentHeight = table.scrollHeight;
-    svg.setAttribute('width', contentWidth);
-    svg.setAttribute('height', contentHeight);
-    svg.setAttribute('viewBox', `0 0 ${contentWidth} ${contentHeight}`);
-
-    const wrapperRect = wrapper.getBoundingClientRect();
-    // Offset toward a corner of each cell (15% down, and toward one side)
-    // rather than dead center, so the path doesn't run straight through
-    // the state name / Q-value text that's centered in each cell.
-    const pointAt = (el, fracX, fracY) => {
-      const r = el.getBoundingClientRect();
-      return {
-        x: r.left - wrapperRect.left + wrapper.scrollLeft + r.width * fracX,
-        y: r.top - wrapperRect.top + wrapper.scrollTop + r.height * fracY
-      };
-    };
-    // Start/finish (the row-label cells) land near the top-right corner —
-    // the side facing the action-value columns. The middle waypoint (the
-    // action cell itself) stays centered horizontally, just offset up.
-    const p1 = pointAt(fromCell, 0.85, 0.15);
-    const p2 = pointAt(actionCell, 0.5, 0.15);
-    const p3 = pointAt(toCell, 0.85, 0.15);
-    const pathD = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} L ${p3.x} ${p3.y}`;
-
-    console.log('[arrow] drawing:', { fromRowIdx, colIdx, toRowIdx, contentWidth, contentHeight, p1, p2, p3, pathD });
-
-    // Built via createElementNS rather than svg.innerHTML = "<path .../>",
-    // since assigning a string containing SVG tags to .innerHTML can parse
-    // them in the wrong (HTML, not SVG) namespace in some browsers, causing
-    // the shapes to silently fail to render at all.
-    while (svg.firstChild) svg.removeChild(svg.firstChild);
-
-    const defs = document.createElementNS(SVG_NS, 'defs');
-    const marker = document.createElementNS(SVG_NS, 'marker');
-    marker.setAttribute('id', 'qtable-arrowhead');
-    marker.setAttribute('markerWidth', '8');
-    marker.setAttribute('markerHeight', '8');
-    marker.setAttribute('refX', '6');
-    marker.setAttribute('refY', '4');
-    marker.setAttribute('orient', 'auto');
-    const arrowheadPath = document.createElementNS(SVG_NS, 'path');
-    arrowheadPath.setAttribute('d', 'M0,0 L8,4 L0,8 Z');
-    arrowheadPath.setAttribute('fill', '#3b82f6');
-    marker.appendChild(arrowheadPath);
-    defs.appendChild(marker);
-    svg.appendChild(defs);
-
-    const arrowPath = document.createElementNS(SVG_NS, 'path');
-    arrowPath.setAttribute('class', 'arrow-path visible');
-    arrowPath.setAttribute('d', pathD);
-    arrowPath.setAttribute('marker-end', 'url(#qtable-arrowhead)');
-    svg.appendChild(arrowPath);
-
-    setTimeout(() => {
-      arrowPath.classList.remove('visible');
-    }, durationMs || 900);
-  };
-
-  // Called when the Q-table is reset or its shape changes (state/action
-  // count), so a stale arrow from before the change doesn't linger.
-  window.clearTransitionArrow = function() {
-    const svg = document.getElementById('qtable-arrow-overlay');
-    if (svg) svg.innerHTML = '';
   };
 
   // Briefly shades the action column header (e.g. "Move to LEFT") that was
