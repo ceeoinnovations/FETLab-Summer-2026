@@ -1,0 +1,114 @@
+<?xml version="1.0" ?>
+<!-- Generated using onshape-to-robot, then hand-updated for mjlab RL training:
+     - added <freejoint/> to dmbase so the root body can move (raw export
+       welds it to worldbody)
+     - swapped position actuators for velocity actuators to match the real
+       DoubleMotor's motor.run_left(speed)/run_right(speed) velocity-command
+       interface (speed -100..100 -> ~-115..115 RPM) -->
+<!-- Onshape https://cad.onshape.com/documents/b0e83dcbac7f4d1e539e8313/w/92469411fe2d9010acea0f56/e/97b6f2f25ccf1d3268eae09e -->
+<mujoco model="TechElementSillyWalk">
+  <compiler angle="radian" meshdir="assets" autolimits="true"/>
+  <default>
+    <default class="TechElementSillyWalk">
+      <joint frictionloss="0.1" armature="0.005"/>
+      <default class="lego_motor">
+        <!-- ctrlrange in rad/s: 115 RPM = 115*2*pi/60 ~= 12.0428 rad/s,
+             matching motor.run_*(speed) where speed=100 -> ~115 RPM.
+             kv (velocity-tracking gain) and forcerange (torque limit, N*m)
+             are BOTH unverified placeholders, no real torque/gain spec
+             was available; tune once real data exists (e.g. by comparing
+             sim vs. real step-response to a command). -->
+        <velocity kv="0.05" ctrlrange="-12.0428 12.0428" ctrllimited="true" forcerange="-0.3 0.3"/>
+      </default>
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+      </default>
+      <default class="collision">
+        <!-- Default friction is (1, 0.005, 0.0001); bumped sliding
+             friction way up so the arms actually grip the ground instead
+             of sliding freely. MuJoCo combines two contacting geoms'
+             friction via elementwise max, so this dominates regardless of
+             the terrain plane's own friction setting. Values are an
+             unverified "a lot more grip" starting point, not measured
+             from real lego-plastic-on-whatever-surface friction; tune
+             down if it becomes sticky/jerky, up if it still slides. -->
+        <geom group="3" friction="3.0 0.02 0.001"/>
+      </default>
+    </default>
+  </default>
+  <worldbody>
+    <!-- Link dmbase -->
+    <body name="dmbase" pos="0 0 0" quat="1 0 0 0" childclass="TechElementSillyWalk">
+      <!-- Free root joint; without this the body is rigidly welded to
+           worldbody and cannot move at all. Actual spawn pose (height,
+           orientation) is set at the entity level via
+           EntityCfg.InitialStateCfg in crawler_env_cfg.py, not here;
+           the pos/quat above are just the CAD reference frame. -->
+      <freejoint/>
+      <inertial pos="0.0188151 -0.0613202 0.0347779" mass="0.0625358" fullinertia="3.74349e-05 1.55601e-05 4.42105e-05 -7.202e-09 -5.6e-10 4.941e-08"/>
+      <!-- Part dmbase -->
+      <geom type="mesh" class="visual" pos="0.0188098 -0.0796657 0.0212604" quat="0.707107 0.707107 -0 0" mesh="dmbase" material="dmbase_material"/>
+      <geom type="mesh" class="collision" pos="0.0188098 -0.0796657 0.0212604" quat="0.707107 0.707107 -0 0" mesh="dmbase" material="dmbase_material"/>
+      <!-- Part dmtop -->
+      <geom type="mesh" class="visual" pos="0.0188098 -0.0796657 0.0212604" quat="0.707107 0.707107 -0 0" mesh="dmtop" material="dmtop_material"/>
+      <geom type="mesh" class="collision" pos="0.0188098 -0.0796657 0.0212604" quat="0.707107 0.707107 -0 0" mesh="dmtop" material="dmtop_material"/>
+      <!-- Link dmright -->
+      <body name="dmright" pos="-0.00519018 -0.0396657 0.0364604" quat="2.458e-09 0.707107 2.458e-09 0.707107">
+        <!-- Joint from dmbase to dmright -->
+        <joint axis="0 0 1" name="rightAngle" type="hinge"/>
+        <inertial pos="-0.00398169 0.0059007 -0.00807564" mass="0.017314" fullinertia="6.31726e-06 3.99859e-06 7.20055e-06 2.86665e-06 -1.52275e-06 2.25798e-06"/>
+        <!-- Part black_technic__liftarm_1_x_9_thick__configuration__1x9 -->
+        <geom type="mesh" class="visual" pos="-0.0295444 0.0500184 -0.024275" quat="0.292462 0 -0 -0.956277" mesh="black_technic__liftarm_1_x_9_thick__configuration__1x9" material="black_technic__liftarm_1_x_9_thick__configuration__1x9_material"/>
+        <geom type="mesh" class="collision" pos="-0.0295444 0.0500184 -0.024275" quat="0.292462 0 -0 -0.956277" mesh="black_technic__liftarm_1_x_9_thick__configuration__1x9" material="black_technic__liftarm_1_x_9_thick__configuration__1x9_material"/>
+        <!-- Part light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double -->
+        <geom type="mesh" class="visual" pos="-0.00447479 0.00663146 -0.01265" quat="0.62437 -0.62437 0.331908 -0.331908" mesh="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double" material="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double_material"/>
+        <geom type="mesh" class="collision" pos="-0.00447479 0.00663146 -0.01265" quat="0.62437 -0.62437 0.331908 -0.331908" mesh="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double" material="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double_material"/>
+        <!-- Part black_technic__liftarm_1_x_9_thick__configuration__1x9_2 -->
+        <geom type="mesh" class="visual" pos="-0.0613359 0.0846623 -0.032025" quat="0 0.956277 0.292462 0" mesh="black_technic__liftarm_1_x_9_thick__configuration__1x9" material="black_technic__liftarm_1_x_9_thick__configuration__1x9_material"/>
+        <geom type="mesh" class="collision" pos="-0.0613359 0.0846623 -0.032025" quat="0 0.956277 0.292462 0" mesh="black_technic__liftarm_1_x_9_thick__configuration__1x9" material="black_technic__liftarm_1_x_9_thick__configuration__1x9_material"/>
+        <!-- Part dmright -->
+        <geom type="mesh" class="visual" pos="-0.0349737 0.0246552 0.024" quat="0.62437 -0.331908 -0.62437 -0.331908" mesh="dmright" material="dmright_material"/>
+        <geom type="mesh" class="collision" pos="-0.0349737 0.0246552 0.024" quat="0.62437 -0.331908 -0.62437 -0.331908" mesh="dmright" material="dmright_material"/>
+        <!-- Part light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double_2 -->
+        <geom type="mesh" class="visual" pos="-0.0304845 0.0451768 -0.02815" quat="0.62437 0.62437 -0.331908 -0.331908" mesh="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double" material="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double_material"/>
+        <geom type="mesh" class="collision" pos="-0.0304845 0.0451768 -0.02815" quat="0.62437 0.62437 -0.331908 -0.331908" mesh="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double" material="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double_material"/>
+      </body>
+      <!-- Link dmleft -->
+      <body name="dmleft" pos="0.0413098 -0.0396657 0.0364604" quat="0.707107 -2.458e-09 -0.707107 2.458e-09">
+        <!-- Joint from dmbase to dmleft -->
+        <joint axis="0 0 1" name="leftAngle" type="hinge"/>
+        <inertial pos="-2.81851e-05 1.43042e-05 -0.0081629" mass="0.0155242" fullinertia="1.08141e-06 1.38902e-06 1.74224e-06 3.29533e-07 -4.407e-09 2.383e-09"/>
+        <!-- Part light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double_3 -->
+        <geom type="mesh" class="visual" pos="0.00632613 -0.00402866 -0.01565" quat="0.197811 0.197811 0.678875 0.678875" mesh="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double" material="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double_material"/>
+        <geom type="mesh" class="collision" pos="0.00632613 -0.00402866 -0.01565" quat="0.197811 0.197811 0.678875 0.678875" mesh="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double" material="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double_material"/>
+        <!-- Part black_technic__liftarm_1_x_15_thick__configuration__1x15 -->
+        <geom type="mesh" class="visual" pos="-0.0470382 0.0340899 -0.027275" quat="0.481064 0 0 -0.876685" mesh="black_technic__liftarm_1_x_15_thick__configuration__1x15" material="black_technic__liftarm_1_x_15_thick__configuration__1x15_material"/>
+        <geom type="mesh" class="collision" pos="-0.0470382 0.0340899 -0.027275" quat="0.481064 0 0 -0.876685" mesh="black_technic__liftarm_1_x_15_thick__configuration__1x15" material="black_technic__liftarm_1_x_15_thick__configuration__1x15_material"/>
+        <!-- Part dmleft -->
+        <geom type="mesh" class="visual" pos="-0.0255746 0.0343071 0.021" quat="0.197811 -0.678875 0.197811 0.678875" mesh="dmleft" material="dmleft_material"/>
+        <geom type="mesh" class="collision" pos="-0.0255746 0.0343071 0.021" quat="0.197811 -0.678875 0.197811 0.678875" mesh="dmleft" material="dmleft_material"/>
+      </body>
+    </body>
+  </worldbody>
+  <asset>
+    <mesh file="dmtop.stl"/>
+    <mesh file="dmbase.stl"/>
+    <mesh file="dmleft.stl"/>
+    <mesh file="black_technic__liftarm_1_x_9_thick__configuration__1x9.stl"/>
+    <mesh file="dmright.stl"/>
+    <mesh file="black_technic__liftarm_1_x_15_thick__configuration__1x15.stl"/>
+    <mesh file="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double.stl"/>
+    <material name="dmbase_material" rgba="0.141176 0.694118 0.65098 1"/>
+    <material name="dmtop_material" rgba="0.901961 0.901961 0.901961 1"/>
+    <material name="black_technic__liftarm_1_x_9_thick__configuration__1x9_material" rgba="0.301961 0.301961 0.301961 1"/>
+    <material name="light_bluish_gray_technic__pin_connector_perpendicular_3l_with_4_pins__configuration_double_material" rgba="0.917647 0.917647 0.917647 1"/>
+    <material name="dmright_material" rgba="0.231373 0.380392 0.705882 1"/>
+    <material name="black_technic__liftarm_1_x_15_thick__configuration__1x15_material" rgba="0.301961 0.301961 0.301961 1"/>
+    <material name="dmleft_material" rgba="0.647059 0.647059 0.647059 1"/>
+  </asset>
+  <actuator>
+    <velocity class="lego_motor" name="rightAngle" joint="rightAngle"/>
+    <velocity class="lego_motor" name="leftAngle" joint="leftAngle"/>
+  </actuator>
+  <equality/>
+</mujoco>

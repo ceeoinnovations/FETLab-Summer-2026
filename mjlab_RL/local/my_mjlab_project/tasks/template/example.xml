@@ -1,0 +1,125 @@
+<?xml version="1.0" ?>
+<!--
+  TEMPLATE ROBOT XML; structure/patterns distilled from two working
+  mjlab tasks (a fixed-base arm reach task, a free-base crawler task).
+  Delete whichever branch (fixed-base vs free-base) doesn't apply to
+  your robot, and fill in the actual mesh/body/joint/actuator data from
+  your own CAD export.
+
+  KEY DECISIONS TO MAKE FOR A NEW TASK:
+    1. Fixed-base (arm bolted down) or free-base (moves around)?
+       - Fixed-base: root body stays welded to worldbody, no freejoint.
+       - Free-base: add <freejoint/> as the FIRST child of the root
+         body. Without it the body cannot move at all, no matter what
+         the actuators do.
+    2. Position actuators or velocity actuators?
+       - Position (<position kp=... kv=.../>): good when the action
+         represents "go to this angle" and you have real torque/effort
+         limits to set forcerange from.
+       - Velocity (<velocity kv=.../>): good when the real hardware's
+         own command interface is a velocity/speed command (e.g. most
+         simple hobby/educational motors). ctrlrange is the actual
+         velocity bound in rad/s; convert from whatever units your
+         hardware spec uses (e.g. RPM: rpm * 2*pi/60).
+    3. Realistic friction/contact params if the robot interacts with
+       the ground via sliding/dragging rather than just standing.
+       MuJoCo's default friction is (1, 0.005, 0.0001) (sliding,
+       torsional, rolling); often too low for a robot that needs to
+       grip the ground to move itself.
+  Also note: XML comments cannot contain two consecutive hyphen
+  characters anywhere in the body (only the closing arrow sequence),
+  or the file becomes invalid XML.
+-->
+<mujoco model="TEMPLATE_ROBOT_NAME">
+  <compiler angle="radian" meshdir="assets" autolimits="true"/>
+
+  <default>
+    <default class="TEMPLATE_ROBOT_NAME">
+      <joint frictionloss="0.1" armature="0.01"/>
+
+      <!-- OPTION A: position control (fixed-base arm style).
+           kp/kv per size class if different joints have different real
+           torque limits; forcerange should match real hardware specs. -->
+      <default class="size_large">
+        <position kp="800" kv="160" ctrllimited="true" forcerange="-56 56"/>
+      </default>
+      <default class="size_small">
+        <position kp="150" kv="30" ctrllimited="true" forcerange="-12 12"/>
+      </default>
+
+      <!-- OPTION B: velocity control (simple motor / educational
+           hardware style). ctrlrange is the real velocity limit in
+           rad/s; kv and forcerange are a tracking-gain/torque-limit
+           placeholder; replace with real spec numbers if you have
+           them, otherwise flag them as unverified in your env_cfg like
+           we did here, and tune once real data exists. -->
+      <default class="motor_velocity">
+        <velocity kv="0.05" ctrlrange="-10.0 10.0" ctrllimited="true" forcerange="-0.3 0.3"/>
+      </default>
+
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+      </default>
+      <default class="collision">
+        <!-- Bump sliding/torsional friction up from the (1, 0.005,
+             0.0001) default if the robot needs to grip the ground to
+             move (e.g. a crawler/walker), rather than just stand on it.
+             MuJoCo combines two contacting geoms' friction via
+             elementwise max, so raising this dominates regardless of
+             the terrain's own friction setting. -->
+        <geom group="3" friction="1.0 0.005 0.0001"/>
+      </default>
+    </default>
+  </default>
+
+  <worldbody>
+    <body name="root_body" pos="0 0 0" quat="1 0 0 0" childclass="TEMPLATE_ROBOT_NAME">
+      <!-- FREE-BASE ONLY: uncomment if this robot needs to move around
+           rather than stay bolted to worldbody. Must be the first child
+           of the root body. Actual spawn pose/height is set at the
+           entity level via EntityCfg.InitialStateCfg in your env_cfg.py,
+           not here; this pos/quat is just the CAD reference frame. -->
+      <!-- <freejoint/> -->
+
+      <inertial pos="0 0 0" mass="1.0" diaginertia="0.01 0.01 0.01"/>
+      <geom type="mesh" class="visual" mesh="root_mesh"/>
+      <geom class="collision" type="capsule" size="0.05 0.1"/>
+
+      <body name="link_1" pos="0 0 0.1">
+        <joint axis="0 0 1" name="joint_1" type="hinge" range="-3.14 3.14" class="size_large"/>
+        <inertial pos="0 0 0" mass="0.5" diaginertia="0.005 0.005 0.005"/>
+        <geom type="mesh" class="visual" mesh="link_1_mesh"/>
+        <geom class="collision" type="capsule" size="0.03 0.08"/>
+
+        <!-- Repeat nested <body>/<joint>/<geom> for each additional
+             link/joint in your kinematic chain. Add a <site> at any
+             point you'll want to track (e.g. an end-effector);
+             observations/rewards typically read site_pos_w /
+             site_lin_vel_w for these. -->
+        <site name="tracked_point" pos="0 0 0.1" size="0.01" rgba="1 0 0 1"/>
+      </body>
+    </body>
+  </worldbody>
+
+  <asset>
+    <mesh file="root_mesh.stl"/>
+    <mesh file="link_1_mesh.stl"/>
+    <!-- ... remaining meshes ... -->
+  </asset>
+
+  <actuator>
+    <!-- One <position> or <velocity> element per actuated joint,
+         matching whichever default class you chose above. Actuator
+         `name` is what actuator_names in your action cfg refers to;
+         doesn't have to match the joint name, but matching them (as
+         both examples here did) keeps things simple. -->
+    <position class="size_large" name="joint_1" joint="joint_1" inheritrange="1"/>
+    <!-- <velocity class="motor_velocity" name="joint_1" joint="joint_1"/> -->
+  </actuator>
+
+  <!-- Optional: <contact><exclude .../></contact> entries for adjacent
+       body pairs that would otherwise generate spurious self-contact at
+       every joint (both example robots needed this). -->
+  <!-- Optional: <equality> for any coupled/mimicked joints (e.g. a
+       gripper's two fingers driven by one motor). -->
+</mujoco>
