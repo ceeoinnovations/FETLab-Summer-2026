@@ -1,5 +1,7 @@
 import asyncio
 import numpy as np
+from collections import deque
+from concurrent.futures import Future
 from pyscript import document, window, when
 from pyodide.ffi import create_proxy
 import sys
@@ -9,6 +11,7 @@ import legoeducation.background_worker as bw
 from pyscript.js_modules.ble import BLEDevice as _BLEDeviceJS
 from legoeducation import DoubleMotor as _DM
 from legoeducation import ColorSensor as _CS
+from legoeducation.rpc_message import InfoRequest, InfoResponse, RPC_VERSION
 from qlearn import QTable
 
 # ── WASM WORKER PATCH ──
@@ -73,6 +76,40 @@ def log(msg):
     term.scrollTop = term.scrollHeight
     print(msg)
 
+# ── FIRMWARE VERSION CHECK ──
+async def _check_firmware_version(device, timeout=3.0):
+    """Ask the hub for its RPC/firmware version and warn in the log if it's
+    out of sync with this app's legoeducation package.
+
+    Reimplements what device.connect()/info() already do natively, but
+    awaiting the response via asyncio instead of blocking on a
+    concurrent.futures.Future.result() — that call (used by info()) would
+    freeze the browser's single-threaded event loop, same reason every
+    motor/sensor call elsewhere in this file passes blocking=False.
+    """
+    msg = InfoRequest().Serialize()
+    response_id = msg[0] + 1
+    future = Future()
+    device._pending_responses.setdefault(response_id, deque()).append(future)
+    device._ask('send', device.device, msg)
+    try:
+        payload = await asyncio.wait_for(asyncio.wrap_future(future), timeout=timeout)
+    except asyncio.TimeoutError:
+        log(f"{device.prefix.upper()}: could not read firmware version (no response).")
+        return
+
+    info = InfoResponse.Deserialize(payload)
+    version_rpc = (info.rpcMajor, info.rpcMinor, info.rpcBuild)
+    if version_rpc == RPC_VERSION:
+        return
+    if version_rpc < RPC_VERSION:
+        log(f"{device.prefix.upper()}: firmware update needed (hub RPC version {version_rpc} "
+            f"< app's {RPC_VERSION}). Go to https://code.legoeducation.com/ to update your hardware.")
+    else:
+        log(f"{device.prefix.upper()}: app update needed (hub RPC version {version_rpc} "
+            f"> app's {RPC_VERSION}). Run: pip install --upgrade legoeducation.")
+
+
 # ── DEVICE MANAGEMENT ──
 class WebDevice:
     def __init__(self, prefix):
@@ -109,6 +146,7 @@ class WebDevice:
                 btn_dis.style.display = 'inline-block'
             log(f"{self.prefix.upper()} connected.")
             check_ready()
+            asyncio.ensure_future(_check_firmware_version(self))
 
     async def _on_notification(self, data: bytes):
         await self._device_callback(NOTIFY_UUID, data)
@@ -445,7 +483,6 @@ def reset_qtable(e=None):
     apply_rewards()
     update_qtable_ui(qtable_instance)
     window.resetBellmanReadout()
-    window.clearTransitionArrow()
     _step_i = 0
     _step_s = None
     _step_yaw = None
@@ -550,7 +587,6 @@ async def _train_loop():
                 window.pulseCell(s, a, 900)
                 window.highlightStateRow(next_s, 'row-to', 900)
                 window.highlightActionHeader(a, 900)
-                window.drawTransitionArrow(s, a, next_s, 900)
                 window.updateBellmanReadout(names[s], action_name, names[next_s],
                                              old_q, alpha, reward, gamma, next_max_q, new_q)
 
@@ -1140,7 +1176,6 @@ async def _step_once():
         window.pulseCell(s, a, 900)
         window.highlightStateRow(next_s, 'row-to', 900)
         window.highlightActionHeader(a, 900)
-        window.drawTransitionArrow(s, a, next_s, 900)
         window.updateBellmanReadout(names[s], action_name, names[next_s],
                                      old_q, alpha, reward, gamma, next_max_q, new_q)
 
